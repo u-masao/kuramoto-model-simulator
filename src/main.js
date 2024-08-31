@@ -22,8 +22,8 @@ function update_input() {
 window.onload = function() {
 
   //variable
-  var width = 300;
-  var height = 300;
+  var width = 500;
+  var height = 500;
 
   // make draw element
   const body = document.body;
