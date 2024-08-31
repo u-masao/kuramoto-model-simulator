@@ -18,3 +18,11 @@ body {
   margin-top: 0.1em;
   margin-bottom: 0.1em;
 }
+
+#widget_panel input {
+  width: 400px;
+}
+
+#widget_panel label {
+  margin-left: 10px;
+}

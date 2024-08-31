@@ -161,6 +161,7 @@ function order(theta) {
 /* init widgets */
 function init_widgets(parent) {
   const control_panel = document.createElement('div');
+  control_panel.id = 'widget_panel';
   addSlider('n', 3, 20, 1.0, control_panel);
   addSlider('k', 3, 20, 1.0, control_panel);
   addSlider('omega_mu', 0, 10, 0.1, control_panel);
