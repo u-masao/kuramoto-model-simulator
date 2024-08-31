@@ -31,11 +31,11 @@ window.onload = function() {
   // append canvas
   init_canvas(body, width, height);
 
-  // append console
-  init_console(body);
-
   // append widgets for parameter control
   init_widgets(body);
+
+  // append console
+  init_console(body);
 
   // run
   restart();
