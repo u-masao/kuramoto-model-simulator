@@ -4,9 +4,43 @@
     <meta charset="utf-8">
     <title>kuramoto model simulator</title>
     <link rel="stylesheet" href="style.css">
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="main.js"></script>
   </head>
   <body>
-    <!-- page content -->
+    <div id='main'></div>
+    <div>
+      <h2>蔵本モデルシミュレーター</h2>
+      <p>このアプリは<a href="https://w.wiki/B4Y3" target="_blank">蔵本モデル</a>
+      のシミュレーターです。複数の振動子の同期をシミュレートします。</p>
+      <h3>モデルについて</h3>
+      <p>
+      蔵本モデルは、複数の振動子 \( i \) の振る舞いを記述します。各振動子 \( i \) に固有な角速度 \( \omega_i \) に対して全ての振動子との位相差の \( sin \) の平均の \( k \) 倍を加えて次のステップの角速度とします。
+      $$
+      \frac{ \partial \theta_i }{ \partial t } =
+      \omega_i + \frac{k}{n} \sum_{j=1}^{n} \sin (\theta_j - \theta_i)
+      $$
+
+      振動子 \( i \) について、次のステップの角速度 \( \frac{ \partial \theta_i }{ \partial t } \)に対して微小時間 \( \Delta t \) を乗じて現在の位相に加えることで次のステップの位相とします。
+
+      $$
+      \dot{\theta_i} = \theta_i + \frac{ \partial \theta_i }{ \partial t } \Delta t
+      $$
+
+      同期の程度を表す変数 \( R \) として、複素平面上の各振動子の位相の重心を計算し、原点から重心までの距離を算出する。これを秩序変数と呼ぶ。
+
+      $$
+      R = \frac{1}{n} \| \sum_{j=1}^{n} e^{i \theta_j} \|
+      $$
+
+      このアプリでは秩序変数がどの程度 \( 1 \) に近づくかを Error Order Score (EOS) と呼び、以下の通り定義する。1 に近づく際の誤差の桁数を利用している。
+
+      $$
+      EOS := \min (1.0,  \frac{-\log10(1 - R)}{15})
+      $$
+
+      各振動子の角速度 \( \omega_i \) の初期値は、平均 omega_mu、標準偏差 omega_sigma の正規分布に従う。
+      </p>
+    </div>
   </body>
 </html>
