@@ -1,10 +1,14 @@
-/* define globals */
-var interval_timer;
+/* define global variables */
+var interval_timer = null;
 var flag_paused = false;
+
+/* define constant values */
+const MAIN_CANVAS_WIDTH = 500;
+const MAIN_CANVAS_HEIGHT = 500;
 const DELTA_TIME_SEC = 0.001;
+const INTERVAL_MSEC = 10;
 const MAX_SIMULATE_STEPS = 0;
-var INTERVAL_MSEC = 10;
-const BACKGROUND_COLOR = 'black';
+const BACKGROUND_COLOR = '#222222FF';
 const HEARTBEAT_COLOR = '#FFAAAAAA';
 const PHASE_COLOR = '#AAAAFF77';
 const ORDER_BACKGROUND_COLOR = '#333333';
@@ -12,10 +16,12 @@ const ORDER_R_COLOR = '#FFAAAAAA';
 const ORDER_ERROR_SCORE_COLOR = '#99FF99FF';
 
 
+/************ callback section ************/
+
 /* define restart */
 function restart() {
   clearInterval(interval_timer);
-  main();
+  simulation();
 }
 
 
@@ -23,6 +29,7 @@ function restart() {
 function update_input() {
   restart();
 }
+
 
 /* toggle pause flag */
 function toggle_pause() {
@@ -34,29 +41,7 @@ function toggle_pause() {
 }
 
 
-/* define onload */
-window.onload = function() {
-
-  //variable
-  var width = 500;
-  var height = 500;
-
-  // make draw element
-  const body = document.body;
-
-  // append canvas
-  init_canvas(body, width, height);
-
-  // append widgets for parameter control
-  init_widgets(body);
-
-  // append console
-  init_console(body);
-
-  // run
-  restart();
-};
-
+/************ ui section ************/
 
 /* init canvas */
 function init_canvas(parent, width, height) {
@@ -141,52 +126,79 @@ function addResetButton(id_value, parent) {
 }
 
 
-/* generate standard norm */
-function rnorm(mu, sigma){
-  return mu
-         + sigma
-         * Math.sqrt(-2 * Math.log(1 - Math.random()))
-         * Math.cos(2 * Math.PI * Math.random());
-}
-
-
-/* calc kuramoto model */
-function kuramoto_formula(omega, k, n, theta) {
-  var theta_dt = new Array(n);
-  for (let i = 0; i < n; i++) {
-    var sum_sine = 0.0;
-    for (let j = 0; j < n; j++) {
-      sum_sine += Math.sin(theta[j] - theta[i]);
-    }
-    theta_dt[i] = omega[i] + (k / n) * sum_sine;
-  }
-  return theta_dt;
-}
-
-
-/* calc order */
-function order(theta) {
-  var x = 0.0;
-  var y = 0.0;
-  var n = theta.length;
-  for (let i = 0; i < n; i++) {
-    x += Math.cos(theta[i]);
-    y += Math.sin(theta[i]);
-  }
-  return Math.min(Math.sqrt(x * x + y * y) / n, 1.0);
-}
-
-
 /* init widgets */
 function init_widgets(parent) {
   const control_panel = document.createElement('div');
   control_panel.id = 'widget_panel';
-  addSlider('n', 20, 3, 30, 1.0, control_panel);
-  addSlider('k', 10, 3, 30, 1.0, control_panel);
+  addSlider('n', 20, 2, 30, 1.0, control_panel);
+  addSlider('k', 10, 0, 30, 1.0, control_panel);
   addSlider('omega_mu', 5, 0, 10, 0.1, control_panel);
   addSlider('omega_sigma', 0.3, 0, 5, 0.01, control_panel);
   addResetButton('restart', control_panel);
   parent.appendChild(control_panel);
+}
+
+
+/************ draw canvas section ************/
+
+/* draw order */
+function drawOrder(ctx, pos, m, counter) {
+
+  // fill background
+  ctx.fillStyle = ORDER_BACKGROUND_COLOR;
+  ctx.fillRect(pos[0], pos[1], pos[2], pos[3]);
+
+  // draw order
+  ctx.fillStyle = ORDER_R_COLOR;
+  ctx.fillRect(pos[0], pos[1], pos[2] * m, pos[3]);
+
+  // draw error order score
+  var error_order_score = Math.min(1.0, -Math.log10(1-m)/15);
+  ctx.fillStyle = ORDER_ERROR_SCORE_COLOR;
+  ctx.fillRect(pos[0], pos[1], pos[2] * error_order_score, pos[3]);
+}
+
+
+/* draw heartbeat */
+function drawHeartbeat(ctx, theta, center_x, center_y, layout_radius) {
+  for (let i = 0; i < theta.length; i++) {
+
+    // calc position
+    var x = center_x + layout_radius * Math.cos(2 * Math.PI * i / theta.length - Math.PI / 2);
+    var y = center_y + layout_radius * Math.sin(2 * Math.PI * i / theta.length - Math.PI / 2);
+
+    // calc radius
+    var amplitude_ratio = 0.8;
+    var max_radius = 0.4 * layout_radius * 2 * Math.PI / theta.length;
+    max_radius = Math.min(max_radius, layout_radius / 4);
+    var radius = max_radius * (
+                     amplitude_ratio * (Math.sin(theta[i]) + 1) / 2
+                     + (1 - amplitude_ratio));
+
+    // draw
+    ctx.fillStyle = HEARTBEAT_COLOR;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, 2 * Math.PI);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+
+/* draw phase */
+function drawPhase(ctx, theta, center_x, center_y, layout_radius, element_radius = 5) {
+  for (let i = 0; i < theta.length; i++) {
+    // calc positoin
+    var x = center_x + layout_radius * Math.cos(theta[i]);
+    var y = center_y + layout_radius * Math.sin(theta[i]);
+
+    // draw
+    ctx.fillStyle = PHASE_COLOR;
+    ctx.beginPath();
+    ctx.arc(x, y, element_radius, 0, 2 * Math.PI);
+    ctx.closePath();
+    ctx.fill();
+  }
 }
 
 
@@ -212,65 +224,54 @@ function update_canvas(theta, m, counter) {
 
   drawHeartbeat(ctx, theta, center_x, center_y, Math.min(width, height) / 3);
   drawPhase(ctx, theta, center_x, center_y, Math.min(width, height) / 5);
-  var margin = 20;
+  var margin = 50;
   var area_height = 5;
   var pos = [margin, height - margin - area_height, width - 2 * margin, area_height];
   drawOrder(ctx, pos, m, counter);
 }
 
 
-/* draw order */
-function drawOrder(ctx, pos, m, counter) {
+/************ mathematical section ************/
 
-  // fill background
-  ctx.fillStyle = ORDER_BACKGROUND_COLOR;
-  ctx.fillRect(pos[0], pos[1], pos[2], pos[3]);
-
-  // draw order
-  ctx.fillStyle = ORDER_R_COLOR;
-  ctx.fillRect(pos[0], pos[1], pos[2] * m, pos[3]);
-
-  // draw error order score
-  var error_order_score = Math.min(1.0, -Math.log(1-m)/32);
-  ctx.fillStyle = ORDER_ERROR_SCORE_COLOR;
-  ctx.fillRect(pos[0], pos[1], pos[2] * error_order_score, pos[3]);
+/* generate standard norm */
+function rnorm(mu, sigma){
+  return mu
+         + sigma
+         * Math.sqrt(-2 * Math.log(1 - Math.random()))
+         * Math.cos(2 * Math.PI * Math.random());
 }
 
-
-/* draw heartbeat */
-function drawHeartbeat(ctx, theta, center_x, center_y, layout_radius) {
-  for (let i = 0; i < theta.length; i++) {
-    var x = center_x + layout_radius * Math.cos(2 * Math.PI * i / theta.length);
-    var y = center_y + layout_radius * Math.sin(2 * Math.PI * i / theta.length);
-    var max_radius = 0.4 * layout_radius * 2 * Math.PI / theta.length;
-    var radius = 0.7 * max_radius * (Math.sin(theta[i]) + 1) / 2 + 0.3 * max_radius;
-
-    ctx.fillStyle = HEARTBEAT_COLOR;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, 2 * Math.PI);
-    ctx.closePath();
-    ctx.fill();
+/* calc order */
+function order(theta) {
+  var x = 0.0;
+  var y = 0.0;
+  var n = theta.length;
+  for (let i = 0; i < n; i++) {
+    x += Math.cos(theta[i]);
+    y += Math.sin(theta[i]);
   }
+  return Math.min(Math.sqrt(x * x + y * y) / n, 1.0);
 }
 
 
-/* draw phase */
-function drawPhase(ctx, theta, center_x, center_y, layout_radius, element_radius = 5) {
-  for (let i = 0; i < theta.length; i++) {
-    var x = center_x + layout_radius * Math.cos(theta[i]);
-    var y = center_y + layout_radius * Math.sin(theta[i]);
-
-    ctx.fillStyle = PHASE_COLOR;
-    ctx.beginPath();
-    ctx.arc(x, y, element_radius, 0, 2 * Math.PI);
-    ctx.closePath();
-    ctx.fill();
+/* calc kuramoto model */
+function kuramoto_formula(omega, k, n, theta) {
+  var theta_dt = new Array(n);
+  for (let i = 0; i < n; i++) {
+    var sum_sine = 0.0;
+    for (let j = 0; j < n; j++) {
+      sum_sine += Math.sin(theta[j] - theta[i]);
+    }
+    theta_dt[i] = omega[i] + (k / n) * sum_sine;
   }
+  return theta_dt;
 }
 
+
+/************ simulation section ************/
 
 /* mail loop */
-function main() {
+function simulation() {
 
   // init params
   var omega_mu = parseFloat( document.getElementById('omega_mu').value)
@@ -289,10 +290,9 @@ function main() {
     theta[i] = Math.random() * 2 * Math.PI;
   }
 
-  var prev_ts = Date.now();
-
-  // main loop
+  // interval steps
   var counter = 0;
+  var history = [];
   interval_timer = setInterval(function() {
 
     // return if paused
@@ -302,6 +302,7 @@ function main() {
 
     // calc order
     m = order(theta);
+    history.push(m);
 
     // update canvas
     update_canvas(theta, m, counter);
@@ -317,12 +318,34 @@ function main() {
       clearInterval(interval_timer);
     }
 
-    var current_ts = Date.now();
-    var fps = 1000 / (current_ts - prev_ts);
-    // log(fps);
-
     // update counter
     counter ++;
-    prev_ts = current_ts;
+
   }, interval_ms);
 }
+
+
+/************ window onload section ************/
+
+/* define window onload */
+window.onload = function() {
+
+  //variable
+  var width = MAIN_CANVAS_WIDTH;
+  var height = MAIN_CANVAS_HEIGHT;
+
+  // make target element
+  const main_div = document.getElementById('main');
+
+  // append canvas
+  init_canvas(main_div, width, height);
+
+  // append widgets for parameter control
+  init_widgets(main_div);
+
+  // append console
+  // init_console(main_div);
+
+  // run simulator
+  restart();
+};
