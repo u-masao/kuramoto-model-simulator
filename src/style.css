@@ -2,3 +2,19 @@ body {
   background: #111111;
   color: #eeeeee;
 }
+
+#main_canvas {
+  display: inline-block;
+}
+
+#console {
+  background: #222222;
+  overflow: scroll;
+  height: 400px;
+  displey: inline-block;
+}
+
+#console p {
+  margin-top: 0.1em;
+  margin-bottom: 0.1em;
+}
