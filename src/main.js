@@ -8,25 +8,25 @@ window.onload = function() {
   init_canvas(body, width, height);
 
   // append console
-  init_console(body, width, height);
+  init_console(body);
 
   // append widgets for parameter control
   init_widgets(body);
 
   // run
-  main(width, height);
+  main();
 };
 
 function init_canvas(parent, width, height) {
   const canvas = document.createElement('canvas');
   canvas.id = 'main_canvas';
-  canvas.setAttribute('width', String(width) + 'px');
-  canvas.setAttribute('height', String(height) + 'px');
+  canvas.width = width;
+  canvas.height = height;
   canvas.innerText = 'draw points with javascript';
   parent.appendChild(canvas);
 }
 
-function init_console(parent, width, height) {
+function init_console(parent) {
   const console = document.createElement('div');
   console.id = 'console';
   parent.appendChild(console);
@@ -42,10 +42,6 @@ function log(message) {
 
 function add_slider(id_value, min_value , max_value, step_value, parent) {
 
-  const label = document.createElement('label');
-  label.setAttribute('for', id_value);
-  label.innerText = id_value;
-
   const widget = document.createElement('input');
   widget.id=id_value;
   widget.setAttribute('type', 'range');
@@ -53,16 +49,47 @@ function add_slider(id_value, min_value , max_value, step_value, parent) {
   widget.setAttribute('max', String(max_value));
   widget.setAttribute('step', String(step_value));
 
+  const label = document.createElement('label');
+  label.setAttribute('for', id_value);
+  label.innerText = id_value + ": " + String(widget.value);
+
   const panel = document.createElement('div');
-  panel.appendChild(label);
   panel.appendChild(widget);
+  panel.appendChild(label);
   parent.appendChild(panel);
 
   widget.addEventListener('input', (event) => {
+    label.innerText = id_value + ": " + String(widget.value);
     update_input();
   });
 }
 
+var restart_flag = 0;
+function restart_loop() {
+  restart_flag = 1;
+  main();
+}
+
+
+function add_reset_button(id_value, parent) {
+
+  const label = document.createElement('label');
+  label.setAttribute('for', id_value);
+  label.innerText = id_value;
+
+  const widget = document.createElement('button');
+  widget.id=id_value;
+  // widget.setAttribute('type', 'button');
+  widget.textContent = id_value
+
+  const panel = document.createElement('div');
+  panel.appendChild(label);
+  panel.appendChild(widget);
+  parent.appendChild(panel);
+  widget.addEventListener('click', (event) => {
+    restart_loop();
+  });
+}
 
 function update_input() {
 }
@@ -88,25 +115,31 @@ function kuramoto_formula(omega, k, n, theta) {
 }
 
 function order(theta) {
-  var r = 0.0;
+  var x = 0.0;
+  var y = 0.0;
   var n = theta.length;
   for (let i = 0; i < n; i++) {
-    r += Math.sin(theta[i]) / n;
+    x += Math.cos(theta[i]);
+    y += Math.sin(theta[i]);
   }
-  return Math.abs(r);
+  return Math.sqrt(x * x + y * y) / n;
 }
 
 function init_widgets(parent) {
   const control_panel = document.createElement('div');
   add_slider('n', 3, 20, 1.0, control_panel);
   add_slider('k', 3, 20, 1.0, control_panel);
-  add_slider('omega_sd', 0, 0.3, 0.05, control_panel);
+  add_slider('omega_mu', 0, 10, 0.1, control_panel);
+  add_slider('omega_sigma', 0, 10, 0.1, control_panel);
   add_slider('j', 0, 1, 0.05, control_panel);
+  add_reset_button('restart', control_panel);
   parent.appendChild(control_panel);
 }
 
-function update_canvas(theta, width, height) {
+function update_canvas(theta) {
   const canvas = document.getElementById('main_canvas');
+  var width = canvas.width;
+  var height = canvas.height;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = 'green';
   ctx.fillRect(0,0,width,height);
@@ -134,11 +167,11 @@ function update_canvas(theta, width, height) {
   }
 }
 
-function main(width, height) {
+function main() {
 
   // init params
-  var omega_mu = 0.2;
-  var omega_sigma = 0.0;
+  var omega_mu  = parseFloat( document.getElementById('omega_mu').value)
+  var omega_sigma= parseFloat( document.getElementById('omega_sigma').value)
   var n = parseInt( document.getElementById('n').value, 10);
   var k = parseInt( document.getElementById('k').value, 10);
   var dt = 0.01;
@@ -156,17 +189,25 @@ function main(width, height) {
   // main loop
   var counter = 0;
   const interval = setInterval(function() {
-    // log(counter + ": " + theta[0]/(2*Math.PI));
+
     m = order(theta);
     log(counter + ": " + m);
     theta_dt = kuramoto_formula(omega, k, n, theta);
     for (let j = 0; j < n; j++) {
       theta[j] += theta_dt[j] * dt;
     }
-    update_canvas(theta, width, height);
+
+    update_canvas(theta);
+
     if (limit != 0 && counter >= limit) {
-        clearInterval(interval);
+      clearInterval(interval);
     }
+
+    if (restart_flag != 0) {
+      restart_flag = 0;
+      clearInterval(interval);
+    }
+
     counter ++;
   }, interval_ms);
 }
