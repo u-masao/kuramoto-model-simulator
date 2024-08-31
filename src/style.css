@@ -10,7 +10,7 @@ body {
 #console {
   background: #222222;
   overflow: scroll;
-  height: 400px;
+  height: 200px;
   displey: inline-block;
 }
 
