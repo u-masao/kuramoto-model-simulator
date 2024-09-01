@@ -131,7 +131,7 @@ function init_widgets(parent) {
   const control_panel = document.createElement('div');
   control_panel.id = 'widget_panel';
   addSlider('n', 20, 2, 30, 1.0, control_panel);
-  addSlider('k', 10, 0, 30, 1.0, control_panel);
+  addSlider('k', 10, 0, 30, 0.01, control_panel);
   addSlider('omega_mu', 5, 0, 10, 0.1, control_panel);
   addSlider('omega_sigma', 0.3, 0, 5, 0.01, control_panel);
   addResetButton('restart', control_panel);
