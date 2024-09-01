@@ -335,7 +335,6 @@ function displayParameters(omega) {
 function displayKuramotoTransitionPoint(omega_mu, omega_sigma) {
   const p = document.getElementById('kuramoto_transition_point');
   var ktp = calcKuramotoTransitionPoint(omega_mu, omega_sigma, 0);
-  console.log(ktp);
   var ktp_fixed = Number.parseFloat(ktp).toFixed(2);
   p.textContent = '蔵本転移点(Kuramoto transition point): k=' + ktp_fixed;
 }
@@ -387,12 +386,35 @@ function calcKuramotoTransitionPoint(mu, sigma, omega) {
 /* calc kuramoto model */
 function kuramoto_formula(omega, k, n, theta) {
   var theta_dt = new Array(n);
+
+  var com = calcCenterOfMass(theta);
+  var r = calcOrder(com);
+  var Theta = calcArc(com);
+
   for (let i = 0; i < n; i++) {
     var sum_sine = 0.0;
     for (let j = 0; j < n; j++) {
       sum_sine += Math.sin(theta[j] - theta[i]);
     }
     theta_dt[i] = omega[i] + (k / n) * sum_sine;
+
+    var sum_sine_fast = Math.sin(Theta - theta[i]);
+    var sum_sine_diff = r * sum_sine_fast - sum_sine / n;
+    console.log({sum_sine_diff});
+  }
+  return theta_dt;
+}
+
+
+/* calc kuramoto model faster */
+function kuramoto_formula_fast(omega, k, n, centerOfMass, theta) {
+  var theta_dt = new Array(n);
+  var r = calcOrder(centerOfMass);
+  // var r = calcOrder(calcCenterOfMass(theta));
+  var large_theta = calcArc(centerOfMass);
+  // var large_theta = calcArc(calcCenterOfMass(theta));
+  for (let i = 0; i < n; i++) {
+    theta_dt[i] = omega[i] + k * r * Math.sin(large_theta - theta[i]);
   }
   return theta_dt;
 }
@@ -413,8 +435,8 @@ function simulate() {
   var interval_ms = INTERVAL_MSEC;
 
   // init values
-  var omega = Array(n);
-  var theta = Array(n);
+  var omega = new Array(n);
+  var theta = new Array(n);
   for (let i = 0; i < n; i++) {
     omega[i] = rnorm(omega_mu, omega_sigma);
     theta[i] = Math.random() * 2 * Math.PI;
@@ -437,17 +459,28 @@ function simulate() {
     }
 
     // calc order
-    centerOfMass= calcCenterOfMass(theta);
+    centerOfMass = calcCenterOfMass(theta);
     history.push(centerOfMass);
 
     // update canvas
     updateMainCanvas(theta, centerOfMass);
 
     // update theta
-    theta_dt = kuramoto_formula(omega, k, n, theta);
+    var theta_dt = kuramoto_formula(omega, k, n, theta);
+    // var theta_dt_compare = kuramoto_formula_fast(omega, k, n, centerOfMass, theta);
     for (let j = 0; j < n; j++) {
       theta[j] += theta_dt[j] * dt;
     }
+
+    /*
+    var theta_dt_diff = new Array(n);
+    for (let j = 0; j < n; j++) {
+      theta_dt_diff[j] = theta_dt_compare[j] - theta_dt[j];
+    }
+    console.log({theta_dt});
+    console.log({theta_dt_compare});
+    console.log({theta_dt_diff});
+    */
 
     // stop hook
     if (limit != 0 && counter >= limit) {
