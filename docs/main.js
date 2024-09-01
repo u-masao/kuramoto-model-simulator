@@ -3,6 +3,7 @@ var interval_timer = null;
 var flag_paused = false;
 
 /* define constant values */
+const DEBUG_FLAG = false;
 const MAIN_CANVAS_WIDTH = 500;
 const MAIN_CANVAS_HEIGHT = 500;
 const DELTA_TIME_SEC = 0.001;
@@ -14,6 +15,7 @@ const PHASE_COLOR = '#AAAAFF77';
 const ORDER_BACKGROUND_COLOR = '#333333';
 const ORDER_R_COLOR = '#FFAAAAAA';
 const ORDER_ERROR_SCORE_COLOR = '#99FF99FF';
+const CENTER_OF_MASS_COLOR = '#FF9999FF';
 
 
 /************ callback section ************/
@@ -68,10 +70,12 @@ function init_console(parent) {
 /* log function */
 function log(message) {
   const console = document.getElementById('console');
-  const p = document.createElement('p');
-  p.innerText = message;
-  console.appendChild(p);
-  console.scrollTop = console.scrollHeight;
+  if (console) {
+    const p = document.createElement('p');
+    p.innerText = message;
+    console.appendChild(p);
+    console.scrollTop = console.scrollHeight;
+  }
 }
 
 
@@ -142,7 +146,10 @@ function init_widgets(parent) {
 /************ draw canvas section ************/
 
 /* draw order */
-function drawOrder(ctx, pos, m, counter) {
+function drawOrder(ctx, pos, centerOfMass) {
+
+  // calc order
+  var m = calcOrder(centerOfMass);
 
   // fill background
   ctx.fillStyle = ORDER_BACKGROUND_COLOR;
@@ -186,7 +193,9 @@ function drawHeartbeat(ctx, theta, center_x, center_y, layout_radius) {
 
 
 /* draw phase */
-function drawPhase(ctx, theta, center_x, center_y, layout_radius, element_radius = 5) {
+function drawPhase(
+  ctx, theta, center_x, center_y, layout_radius, element_radius = 5
+) {
   for (let i = 0; i < theta.length; i++) {
     // calc positoin
     var x = center_x + layout_radius * Math.cos(theta[i]);
@@ -202,8 +211,26 @@ function drawPhase(ctx, theta, center_x, center_y, layout_radius, element_radius
 }
 
 
+/* draw center of mass */
+function drawCenterOfMass(
+  ctx, centerOfMass, center_x, center_y, layout_radius, element_radius = 5
+) {
+  var {x, y} = centerOfMass;
+
+  x = x * layout_radius + center_x;
+  y = y * layout_radius + center_y;
+
+  // draw
+  ctx.fillStyle = CENTER_OF_MASS_COLOR;
+  ctx.beginPath();
+  ctx.arc(x, y, element_radius, 0, 2 * Math.PI);
+  ctx.closePath();
+  ctx.fill();
+}
+
+
 /* update canvas */
-function update_canvas(theta, m, counter) {
+function updateMainCanvas(theta, centerOfMass) {
 
   // get canvas
   const canvas = document.getElementById('main_canvas');
@@ -224,10 +251,11 @@ function update_canvas(theta, m, counter) {
 
   drawHeartbeat(ctx, theta, center_x, center_y, Math.min(width, height) / 3);
   drawPhase(ctx, theta, center_x, center_y, Math.min(width, height) / 5);
+  drawCenterOfMass(ctx, centerOfMass, center_x, center_y, Math.min(width, height) / 5);
   var margin = 50;
   var area_height = 5;
   var pos = [margin, height - margin - area_height, width - 2 * margin, area_height];
-  drawOrder(ctx, pos, m, counter);
+  drawOrder(ctx, pos, centerOfMass);
 }
 
 
@@ -242,7 +270,7 @@ function rnorm(mu, sigma){
 }
 
 /* calc order */
-function order(theta) {
+function calcCenterOfMass(theta) {
   var x = 0.0;
   var y = 0.0;
   var n = theta.length;
@@ -250,7 +278,20 @@ function order(theta) {
     x += Math.cos(theta[i]);
     y += Math.sin(theta[i]);
   }
-  return Math.min(Math.sqrt(x * x + y * y) / n, 1.0);
+  x /= n;
+  y /= n;
+  return {x, y};
+}
+
+function calcOrder(centerOfmass) {
+  const {x, y} = centerOfMass;
+  return Math.min(Math.sqrt(x * x + y * y) , 1.0);
+}
+
+
+function calcArc(centerOfmass) {
+  const {x, y} = centerOfMass;
+  return Math.atan2(x,y);
 }
 
 
@@ -301,11 +342,11 @@ function simulation() {
     }
 
     // calc order
-    m = order(theta);
-    history.push(m);
+    centerOfMass= calcCenterOfMass(theta);
+    history.push(centerOfMass);
 
     // update canvas
-    update_canvas(theta, m, counter);
+    updateMainCanvas(theta, centerOfMass);
 
     // update theta
     theta_dt = kuramoto_formula(omega, k, n, theta);
@@ -344,7 +385,9 @@ window.onload = function() {
   init_widgets(main_div);
 
   // append console
-  // init_console(main_div);
+  if (DEBUG_FLAG == true) {
+    init_console(main_div);
+  }
 
   // run simulator
   restart();
