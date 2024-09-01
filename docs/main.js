@@ -23,7 +23,7 @@ const CENTER_OF_MASS_COLOR = '#FF9999FF';
 /* define restart */
 function restart() {
   clearInterval(interval_timer);
-  simulation();
+  simulate();
 }
 
 
@@ -143,6 +143,14 @@ function init_widgets(parent) {
 }
 
 
+/* init parameter table */
+function init_parameter_table(parent) {
+  const parameter_table = document.createElement('div');
+  parameter_table.id = 'parameter_table';
+  parent.appendChild(parameter_table);
+}
+
+
 /************ draw canvas section ************/
 
 /* draw order */
@@ -259,6 +267,56 @@ function updateMainCanvas(theta, centerOfMass) {
 }
 
 
+/* display parameters */
+function displayParameters(omega) {
+  // take target div
+  const div = document.getElementById('parameter_table');
+
+  // remove all childlen
+  while (div.firstChild) {
+    div.removeChild(div.firstChild);
+  }
+
+  // create table
+  const table = document.createElement('table');
+
+  // create header
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  ['#','omega'].forEach(function(label) {
+    const th = document.createElement('th');
+    console.log(label);
+    th.appendChild(document.createTextNode(label));
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+
+  // create body
+  const tbody = document.createElement('tbody');
+  console.log(omega);
+  console.log(omega.length);
+  for (let i = 0; i < omega.length; i++) {
+    const tr = document.createElement('tr');
+    var td;
+
+    // number
+    td = document.createElement('td');
+    td.appendChild(document.createTextNode(String(i)));
+    tr.appendChild(td);
+
+    // initial omega
+    var fixed_float = Number.parseFloat(omega[i]).toFixed(3);
+    td = document.createElement('td');
+    td.appendChild(document.createTextNode(fixed_float));
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  div.appendChild(table);
+}
+
+
 /************ mathematical section ************/
 
 /* generate standard norm */
@@ -309,10 +367,10 @@ function kuramoto_formula(omega, k, n, theta) {
 }
 
 
-/************ simulation section ************/
+/************ simulate section ************/
 
 /* mail loop */
-function simulation() {
+function simulate() {
 
   // init params
   var omega_mu = parseFloat( document.getElementById('omega_mu').value)
@@ -330,6 +388,9 @@ function simulation() {
     omega[i] = rnorm(omega_mu * Math.PI * 2, 2 * Math.PI * omega_sigma);
     theta[i] = Math.random() * 2 * Math.PI;
   }
+
+  // display params
+  displayParameters(omega);
 
   // interval steps
   var counter = 0;
@@ -380,6 +441,9 @@ window.onload = function() {
 
   // append canvas
   init_canvas(main_div, width, height);
+
+  // append widgets for parameter control
+  init_parameter_table(main_div);
 
   // append widgets for parameter control
   init_widgets(main_div);
