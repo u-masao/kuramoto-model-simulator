@@ -6,7 +6,7 @@ var flag_paused = false;
 const DEBUG_FLAG = false;
 const MAIN_CANVAS_WIDTH = 500;
 const MAIN_CANVAS_HEIGHT = 500;
-const DELTA_TIME_SEC = 0.001;
+const DELTA_TIME_SEC = 0.01;
 const INTERVAL_MSEC = 10;
 const MAX_SIMULATE_STEPS = 0;
 const BACKGROUND_COLOR = '#222222FF';
@@ -134,12 +134,24 @@ function addResetButton(id_value, parent) {
 function init_widgets(parent) {
   const control_panel = document.createElement('div');
   control_panel.id = 'widget_panel';
-  addSlider('n', 20, 2, 30, 1.0, control_panel);
-  addSlider('k', 10, 0, 30, 0.01, control_panel);
-  addSlider('omega_mu', 5, 0, 10, 0.1, control_panel);
-  addSlider('omega_sigma', 0.3, 0, 5, 0.01, control_panel);
+
+  var omega_mu = 1;
+  var omega_sigma = 1;
+  var ktp = calcKuramotoTransitionPoint(omega_mu, omega_sigma, 0);
+
+  addSlider('n', 30, 2, 30, 1.0, control_panel);
+  addSlider('k', ktp, 0, 10, 0.01, control_panel);
+  addSlider('omega_mu', omega_mu, 0, 10, 0.1, control_panel);
+  addSlider('omega_sigma', omega_sigma, 0, 5, 0.01, control_panel);
   addResetButton('restart', control_panel);
+
+  const p_ktp = document.createElement('p');
+  p_ktp.id = 'kuramoto_transition_point';
+  p_ktp.appendChild(document.createTextNode(''))
+  control_panel.appendChild(p_ktp);
+
   parent.appendChild(control_panel);
+
 }
 
 
@@ -260,9 +272,10 @@ function updateMainCanvas(theta, centerOfMass) {
   drawHeartbeat(ctx, theta, center_x, center_y, Math.min(width, height) / 3);
   drawPhase(ctx, theta, center_x, center_y, Math.min(width, height) / 5);
   drawCenterOfMass(ctx, centerOfMass, center_x, center_y, Math.min(width, height) / 5);
-  var margin = 50;
+  var margin_bottom = 20;
+  var margin_sides = width / 5;
   var area_height = 5;
-  var pos = [margin, height - margin - area_height, width - 2 * margin, area_height];
+  var pos = [margin_sides, height - margin_bottom- area_height, width - 2 * margin_sides, area_height];
   drawOrder(ctx, pos, centerOfMass);
 }
 
@@ -271,6 +284,10 @@ function updateMainCanvas(theta, centerOfMass) {
 function displayParameters(omega) {
   // take target div
   const div = document.getElementById('parameter_table');
+
+  if (!div) {
+    return;
+  }
 
   // remove all childlen
   while (div.firstChild) {
@@ -285,7 +302,6 @@ function displayParameters(omega) {
   const tr = document.createElement('tr');
   ['#','omega'].forEach(function(label) {
     const th = document.createElement('th');
-    console.log(label);
     th.appendChild(document.createTextNode(label));
     tr.appendChild(th);
   });
@@ -294,8 +310,6 @@ function displayParameters(omega) {
 
   // create body
   const tbody = document.createElement('tbody');
-  console.log(omega);
-  console.log(omega.length);
   for (let i = 0; i < omega.length; i++) {
     const tr = document.createElement('tr');
     var td;
@@ -317,13 +331,22 @@ function displayParameters(omega) {
 }
 
 
+/* display kuramoto trainsition point */
+function displayKuramotoTransitionPoint(omega_mu, omega_sigma) {
+  const p = document.getElementById('kuramoto_transition_point');
+  var ktp = calcKuramotoTransitionPoint(omega_mu, omega_sigma, 0);
+  console.log(ktp);
+  var ktp_fixed = Number.parseFloat(ktp).toFixed(2);
+  p.textContent = '蔵本転移点(Kuramoto transition point): k=' + ktp_fixed;
+}
+
 /************ mathematical section ************/
 
 /* generate standard norm */
 function rnorm(mu, sigma){
   return mu
          + sigma
-         * Math.sqrt(-2 * Math.log(1 - Math.random()))
+         * Math.sqrt(-2 * Math.log(Math.random()))
          * Math.cos(2 * Math.PI * Math.random());
 }
 
@@ -352,6 +375,14 @@ function calcArc(centerOfmass) {
   return Math.atan2(x,y);
 }
 
+
+/* calc kuramoto transition point */
+function calcKuramotoTransitionPoint(mu, sigma, omega) {
+  var g_omega = 1 / Math.sqrt(2 * Math.PI * (sigma ^ 2))
+                * Math.exp(- (omega - mu) ^ 2 / 2);
+  var k_c = 2 / (Math.PI * g_omega);
+  return k_c;
+}
 
 /* calc kuramoto model */
 function kuramoto_formula(omega, k, n, theta) {
@@ -385,12 +416,15 @@ function simulate() {
   var omega = Array(n);
   var theta = Array(n);
   for (let i = 0; i < n; i++) {
-    omega[i] = rnorm(omega_mu * Math.PI * 2, 2 * Math.PI * omega_sigma);
+    omega[i] = rnorm(omega_mu, omega_sigma);
     theta[i] = Math.random() * 2 * Math.PI;
   }
 
   // display params
   displayParameters(omega);
+
+  // display kuramoto transition point
+  displayKuramotoTransitionPoint(omega_mu, omega_sigma);
 
   // interval steps
   var counter = 0;
@@ -443,7 +477,7 @@ window.onload = function() {
   init_canvas(main_div, width, height);
 
   // append widgets for parameter control
-  init_parameter_table(main_div);
+  // init_parameter_table(main_div);
 
   // append widgets for parameter control
   init_widgets(main_div);
