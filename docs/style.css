@@ -7,6 +7,29 @@ body {
   display: inline-block;
 }
 
+#parameter_table {
+  display: inline-block;
+  margin: 30px;
+}
+
+#parameter_table table {
+  border: 1px dashed gray;
+}
+
+#parameter_table td,
+#parameter_table th
+{
+  padding: 0px 5px 0px 20px;
+}
+
+#parameter_table th {
+  text-align: left;
+}
+
+#parameter_table td {
+  text-align: right;
+}
+
 #console {
   background: #222222;
   overflow: scroll;
@@ -17,6 +40,10 @@ body {
 #console p {
   margin-top: 0.1em;
   margin-bottom: 0.1em;
+}
+
+#widget_panel {
+  display: inline-block;
 }
 
 #widget_panel input {
