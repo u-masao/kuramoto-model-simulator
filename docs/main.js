@@ -139,7 +139,7 @@ function init_widgets(parent) {
   var omega_sigma = 1;
   var ktp = calcKuramotoTransitionPoint(omega_mu, omega_sigma, 0);
 
-  addSlider('n', 30, 2, 30, 1.0, control_panel);
+  addSlider('n', 30, 2, 60, 1.0, control_panel);
   addSlider('k', ktp, 0, 10, 0.01, control_panel);
   addSlider('omega_mu', omega_mu, 0, 10, 0.1, control_panel);
   addSlider('omega_sigma', omega_sigma, 0, 5, 0.01, control_panel);
@@ -371,7 +371,7 @@ function calcOrder(centerOfmass) {
 
 function calcArc(centerOfmass) {
   const {x, y} = centerOfMass;
-  return Math.atan2(x,y);
+  return Math.atan2(y,x);
 }
 
 
@@ -383,36 +383,25 @@ function calcKuramotoTransitionPoint(mu, sigma, omega) {
   return k_c;
 }
 
-/* calc kuramoto model */
+/* calc kuramoto model naive implement */
 function kuramoto_formula(omega, k, n, theta) {
   var theta_dt = new Array(n);
-
-  var com = calcCenterOfMass(theta);
-  var r = calcOrder(com);
-  var Theta = calcArc(com);
-
   for (let i = 0; i < n; i++) {
     var sum_sine = 0.0;
     for (let j = 0; j < n; j++) {
       sum_sine += Math.sin(theta[j] - theta[i]);
     }
     theta_dt[i] = omega[i] + (k / n) * sum_sine;
-
-    var sum_sine_fast = Math.sin(Theta - theta[i]);
-    var sum_sine_diff = r * sum_sine_fast - sum_sine / n;
-    console.log({sum_sine_diff});
   }
   return theta_dt;
 }
 
 
-/* calc kuramoto model faster */
+/* calc kuramoto model transformation */
 function kuramoto_formula_fast(omega, k, n, centerOfMass, theta) {
   var theta_dt = new Array(n);
   var r = calcOrder(centerOfMass);
-  // var r = calcOrder(calcCenterOfMass(theta));
   var large_theta = calcArc(centerOfMass);
-  // var large_theta = calcArc(calcCenterOfMass(theta));
   for (let i = 0; i < n; i++) {
     theta_dt[i] = omega[i] + k * r * Math.sin(large_theta - theta[i]);
   }
@@ -466,21 +455,10 @@ function simulate() {
     updateMainCanvas(theta, centerOfMass);
 
     // update theta
-    var theta_dt = kuramoto_formula(omega, k, n, theta);
-    // var theta_dt_compare = kuramoto_formula_fast(omega, k, n, centerOfMass, theta);
+    var theta_dt = kuramoto_formula_fast(omega, k, n, centerOfMass, theta);
     for (let j = 0; j < n; j++) {
       theta[j] += theta_dt[j] * dt;
     }
-
-    /*
-    var theta_dt_diff = new Array(n);
-    for (let j = 0; j < n; j++) {
-      theta_dt_diff[j] = theta_dt_compare[j] - theta_dt[j];
-    }
-    console.log({theta_dt});
-    console.log({theta_dt_compare});
-    console.log({theta_dt_diff});
-    */
 
     // stop hook
     if (limit != 0 && counter >= limit) {
