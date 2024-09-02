@@ -499,13 +499,11 @@ window.onload = function() {
   init_canvas(main_div, MAIN_CANVAS_WIDTH, MAIN_CANVAS_HEIGHT);
 
   // append widgets for parameter control
-  init_parameter_table(main_div);
-
-  // append widgets for parameter control
   init_widgets(main_div);
 
   // append console
   if (DEBUG_FLAG == true) {
+    init_parameter_table(main_div);
     init_console(main_div);
   }
 
