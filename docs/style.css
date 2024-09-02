@@ -7,6 +7,10 @@ body {
   display: inline-block;
 }
 
+#history_canvas {
+  display: inline-block;
+}
+
 #parameter_table {
   display: inline-block;
   margin: 30px;

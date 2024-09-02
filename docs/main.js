@@ -11,6 +11,8 @@ const INTERVAL_MSEC = 10;
 const MAX_SIMULATE_STEPS = 0;
 const BACKGROUND_COLOR = '#222222FF';
 const HEARTBEAT_COLOR = '#FFAAAAAA';
+const HISTORY_COLOR = '#FFAAAA0F';
+const HISTORY_LINE_COLOR = '#FFAAAAAA';
 const PHASE_COLOR = '#AAAAFF77';
 const ORDER_BACKGROUND_COLOR = '#333333';
 const ORDER_R_COLOR = '#FFAAAAAA';
@@ -47,6 +49,7 @@ function toggle_pause() {
 
 /* init canvas */
 function init_canvas(parent, width, height) {
+
   const main_canvas = document.createElement('canvas');
   main_canvas.id = 'main_canvas';
   main_canvas.width = width;
@@ -56,6 +59,13 @@ function init_canvas(parent, width, height) {
     toggle_pause();
   });
   parent.appendChild(main_canvas);
+
+  const history_canvas = document.createElement('canvas');
+  history_canvas.id = 'history_canvas';
+  history_canvas.width = width;
+  history_canvas.height = height / 2;
+  history_canvas.innerText = 'draw history with javascript';
+  parent.appendChild(history_canvas);
 }
 
 
@@ -250,19 +260,21 @@ function drawCenterOfMass(
 
 
 /* update canvas */
-function updateMainCanvas(theta, centerOfMass) {
+function updateMainCanvas(theta, centerOfMass, history, last_length = 10000) {
 
   // get canvas
-  const canvas = document.getElementById('main_canvas');
+  const main_canvas = document.getElementById('main_canvas');
 
   // get size
-  var width = canvas.width;
-  var height = canvas.height;
+  var width = main_canvas.width;
+  var height = main_canvas.height;
   var center_x = width / 2;
   var center_y = height / 2;
 
+  var osc_radius = Math.min(width, height) / 5;
+
   // get context
-  const ctx = canvas.getContext('2d');
+  const ctx = main_canvas.getContext('2d');
 
   // make gackground
   ctx.fillStyle = BACKGROUND_COLOR;
@@ -270,8 +282,8 @@ function updateMainCanvas(theta, centerOfMass) {
 
   // draw oscillators
   drawHeartbeat(ctx, theta, center_x, center_y, Math.min(width, height) / 3);
-  drawPhase(ctx, theta, center_x, center_y, Math.min(width, height) / 5);
-  drawCenterOfMass(ctx, centerOfMass, center_x, center_y, Math.min(width, height) / 5);
+  drawPhase(ctx, theta, center_x, center_y, osc_radius);
+  drawCenterOfMass(ctx, centerOfMass, center_x, center_y, osc_radius);
 
   // draw synchronous gauge
   var margin_bottom = 20;
@@ -282,8 +294,58 @@ function updateMainCanvas(theta, centerOfMass) {
              width - 2 * margin_sides,
              area_height];
   drawOrder(ctx, pos, centerOfMass);
+
+  var last_history = history.slice(-last_length);
+  ctx.fillStyle = HISTORY_COLOR;
+  const radius = 2;
+  last_history.forEach(function({x,y}) {
+    // draw
+    ctx.beginPath();
+    ctx.arc(x * osc_radius + center_x,
+            y * osc_radius + center_y,
+            radius, 0, 2 * Math.PI);
+    ctx.closePath();
+    ctx.fill();
+  });
 }
 
+/* update history canvas */
+function updateHistoryCanvas(history, last_length = 1000) {
+
+  if (history.length ==0){
+    return;
+  }
+
+  // get canvas
+  const history_canvas = document.getElementById('history_canvas');
+
+  // get size
+  var width = history_canvas.width;
+  var height = history_canvas.height;
+  var center_x = width / 2;
+  var center_y = height/ 2;
+  var r = 0.4 * Math.min(width, height);
+
+  // get context
+  const ctx = history_canvas.getContext('2d');
+
+  // make gackground
+  ctx.fillStyle = BACKGROUND_COLOR;
+  ctx.fillRect(0,0,width,height);
+
+  ctx.fillStyle = HISTORY_LINE_COLOR;
+  var last_history = history.slice(-last_length);
+  for (let i = 0; i < last_history.length; i++) {
+    var margin = 50;
+    var order = calcOrder(last_history[i]);
+    const radius = 1;
+    ctx.beginPath();
+    ctx.arc(i * (width - 2 * margin) / last_length + margin,
+            (1 - order) * (height - 2 * margin) + margin, radius, 0, 2 * Math.PI);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
 
 /* display parameters */
 function displayParameters(omega) {
@@ -372,7 +434,7 @@ function calcCenterOfMass(theta) {
 
 
 /* calc order parameter */
-function calcOrder(centerOfmass) {
+function calcOrder(centerOfMass) {
   const {x, y} = centerOfMass;
   // censoring 1.0000000000
   return Math.min(Math.sqrt(x * x + y * y) , 1.0);
@@ -380,7 +442,7 @@ function calcOrder(centerOfmass) {
 
 
 /* calc phase of center of mass */
-function calcArc(centerOfmass) {
+function calcArc(centerOfMass) {
   const {x, y} = centerOfMass;
   // incollect atan2(x,y)
   return Math.atan2(y,x);
@@ -461,10 +523,11 @@ function simulate() {
     }
 
     // calc center of mass
-    centerOfMass = calcCenterOfMass(theta);
+    var centerOfMass = calcCenterOfMass(theta);
 
     // update canvas
-    updateMainCanvas(theta, centerOfMass);
+    updateMainCanvas(theta, centerOfMass, history);
+    updateHistoryCanvas(history);
 
     // update theta
     var theta_dt = kuramoto_formula_fast(omega, k, n, theta, centerOfMass);
