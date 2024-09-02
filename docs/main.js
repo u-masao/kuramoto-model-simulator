@@ -258,6 +258,8 @@ function updateMainCanvas(theta, centerOfMass) {
   // get size
   var width = canvas.width;
   var height = canvas.height;
+  var center_x = width / 2;
+  var center_y = height / 2;
 
   // get context
   const ctx = canvas.getContext('2d');
@@ -266,22 +268,26 @@ function updateMainCanvas(theta, centerOfMass) {
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0,0,width,height);
 
-  var center_x = width / 2;
-  var center_y = height / 2;
-
+  // draw oscillators
   drawHeartbeat(ctx, theta, center_x, center_y, Math.min(width, height) / 3);
   drawPhase(ctx, theta, center_x, center_y, Math.min(width, height) / 5);
   drawCenterOfMass(ctx, centerOfMass, center_x, center_y, Math.min(width, height) / 5);
+
+  // draw synchronous gauge
   var margin_bottom = 20;
   var margin_sides = width / 5;
   var area_height = 5;
-  var pos = [margin_sides, height - margin_bottom- area_height, width - 2 * margin_sides, area_height];
+  var pos = [margin_sides,
+             height - margin_bottom- area_height,
+             width - 2 * margin_sides,
+             area_height];
   drawOrder(ctx, pos, centerOfMass);
 }
 
 
 /* display parameters */
 function displayParameters(omega) {
+
   // take target div
   const div = document.getElementById('parameter_table');
 
@@ -349,11 +355,12 @@ function rnorm(mu, sigma){
          * Math.cos(2 * Math.PI * Math.random());
 }
 
-/* calc order */
+
+/* calc center of mass */
 function calcCenterOfMass(theta) {
   var x = 0.0;
   var y = 0.0;
-  var n = theta.length;
+  const n = theta.length;
   for (let i = 0; i < n; i++) {
     x += Math.cos(theta[i]);
     y += Math.sin(theta[i]);
@@ -363,14 +370,19 @@ function calcCenterOfMass(theta) {
   return {x, y};
 }
 
+
+/* calc order parameter */
 function calcOrder(centerOfmass) {
   const {x, y} = centerOfMass;
+  // censoring 1.0000000000
   return Math.min(Math.sqrt(x * x + y * y) , 1.0);
 }
 
 
+/* calc phase of center of mass */
 function calcArc(centerOfmass) {
   const {x, y} = centerOfMass;
+  // incollect atan2(x,y)
   return Math.atan2(y,x);
 }
 
@@ -382,6 +394,7 @@ function calcKuramotoTransitionPoint(mu, sigma, omega) {
   var k_c = 2 / (Math.PI * g_omega);
   return k_c;
 }
+
 
 /* calc kuramoto model naive implement */
 function kuramoto_formula(omega, k, n, theta) {
@@ -398,7 +411,7 @@ function kuramoto_formula(omega, k, n, theta) {
 
 
 /* calc kuramoto model transformation */
-function kuramoto_formula_fast(omega, k, n, centerOfMass, theta) {
+function kuramoto_formula_fast(omega, k, n, theta, centerOfMass) {
   var theta_dt = new Array(n);
   var r = calcOrder(centerOfMass);
   var large_theta = calcArc(centerOfMass);
@@ -447,15 +460,14 @@ function simulate() {
       return;
     }
 
-    // calc order
+    // calc center of mass
     centerOfMass = calcCenterOfMass(theta);
-    history.push(centerOfMass);
 
     // update canvas
     updateMainCanvas(theta, centerOfMass);
 
     // update theta
-    var theta_dt = kuramoto_formula_fast(omega, k, n, centerOfMass, theta);
+    var theta_dt = kuramoto_formula_fast(omega, k, n, theta, centerOfMass);
     for (let j = 0; j < n; j++) {
       theta[j] += theta_dt[j] * dt;
     }
@@ -464,6 +476,9 @@ function simulate() {
     if (limit != 0 && counter >= limit) {
       clearInterval(interval_timer);
     }
+
+    // save center of mass
+    history.push(centerOfMass);
 
     // update counter
     counter ++;
@@ -477,18 +492,14 @@ function simulate() {
 /* define window onload */
 window.onload = function() {
 
-  //variable
-  var width = MAIN_CANVAS_WIDTH;
-  var height = MAIN_CANVAS_HEIGHT;
-
   // make target element
   const main_div = document.getElementById('main');
 
   // append canvas
-  init_canvas(main_div, width, height);
+  init_canvas(main_div, MAIN_CANVAS_WIDTH, MAIN_CANVAS_HEIGHT);
 
   // append widgets for parameter control
-  // init_parameter_table(main_div);
+  init_parameter_table(main_div);
 
   // append widgets for parameter control
   init_widgets(main_div);
