@@ -139,7 +139,7 @@ function init_widgets(parent) {
   var omega_sigma = 1;
   var ktp = calcKuramotoTransitionPoint(omega_mu, omega_sigma, 0);
 
-  addSlider('n', 30, 2, 30, 1.0, control_panel);
+  addSlider('n', 30, 2, 60, 1.0, control_panel);
   addSlider('k', ktp, 0, 10, 0.01, control_panel);
   addSlider('omega_mu', omega_mu, 0, 10, 0.1, control_panel);
   addSlider('omega_sigma', omega_sigma, 0, 5, 0.01, control_panel);
@@ -335,7 +335,6 @@ function displayParameters(omega) {
 function displayKuramotoTransitionPoint(omega_mu, omega_sigma) {
   const p = document.getElementById('kuramoto_transition_point');
   var ktp = calcKuramotoTransitionPoint(omega_mu, omega_sigma, 0);
-  console.log(ktp);
   var ktp_fixed = Number.parseFloat(ktp).toFixed(2);
   p.textContent = '蔵本転移点(Kuramoto transition point): k=' + ktp_fixed;
 }
@@ -372,7 +371,7 @@ function calcOrder(centerOfmass) {
 
 function calcArc(centerOfmass) {
   const {x, y} = centerOfMass;
-  return Math.atan2(x,y);
+  return Math.atan2(y,x);
 }
 
 
@@ -384,7 +383,7 @@ function calcKuramotoTransitionPoint(mu, sigma, omega) {
   return k_c;
 }
 
-/* calc kuramoto model */
+/* calc kuramoto model naive implement */
 function kuramoto_formula(omega, k, n, theta) {
   var theta_dt = new Array(n);
   for (let i = 0; i < n; i++) {
@@ -393,6 +392,18 @@ function kuramoto_formula(omega, k, n, theta) {
       sum_sine += Math.sin(theta[j] - theta[i]);
     }
     theta_dt[i] = omega[i] + (k / n) * sum_sine;
+  }
+  return theta_dt;
+}
+
+
+/* calc kuramoto model transformation */
+function kuramoto_formula_fast(omega, k, n, centerOfMass, theta) {
+  var theta_dt = new Array(n);
+  var r = calcOrder(centerOfMass);
+  var large_theta = calcArc(centerOfMass);
+  for (let i = 0; i < n; i++) {
+    theta_dt[i] = omega[i] + k * r * Math.sin(large_theta - theta[i]);
   }
   return theta_dt;
 }
@@ -413,8 +424,8 @@ function simulate() {
   var interval_ms = INTERVAL_MSEC;
 
   // init values
-  var omega = Array(n);
-  var theta = Array(n);
+  var omega = new Array(n);
+  var theta = new Array(n);
   for (let i = 0; i < n; i++) {
     omega[i] = rnorm(omega_mu, omega_sigma);
     theta[i] = Math.random() * 2 * Math.PI;
@@ -437,14 +448,14 @@ function simulate() {
     }
 
     // calc order
-    centerOfMass= calcCenterOfMass(theta);
+    centerOfMass = calcCenterOfMass(theta);
     history.push(centerOfMass);
 
     // update canvas
     updateMainCanvas(theta, centerOfMass);
 
     // update theta
-    theta_dt = kuramoto_formula(omega, k, n, theta);
+    var theta_dt = kuramoto_formula_fast(omega, k, n, centerOfMass, theta);
     for (let j = 0; j < n; j++) {
       theta[j] += theta_dt[j] * dt;
     }
