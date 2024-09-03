@@ -6,8 +6,8 @@ var flag_paused = false;
 const DEBUG_FLAG = false;
 const MAIN_CANVAS_WIDTH = 500;
 const MAIN_CANVAS_HEIGHT = 500;
-const DELTA_TIME_SEC = 0.01;
-const INTERVAL_MSEC = 10;
+const DELTA_TIME_SEC = 0.02;
+const INTERVAL_MSEC = 20;
 const MAX_SIMULATE_STEPS = 0;
 const LAST_HISTORY_COUNT = 1000;
 const BACKGROUND_COLOR = '#222222FF';
@@ -19,6 +19,7 @@ const ORDER_BACKGROUND_COLOR = '#333333';
 const ORDER_R_COLOR = '#FFAAAAAA';
 const ORDER_ERROR_SCORE_COLOR = '#99FF99FF';
 const CENTER_OF_MASS_COLOR = '#FF9999FF';
+const HISTORY_CHAR_BORDER_COLOR = '#555555FF';
 
 
 /************ callback section ************/
@@ -343,12 +344,14 @@ function updateHistoryCanvas(history) {
     var order = calcOrder(history[i]);
     const radius = 1;
     ctx.beginPath();
-    ctx.arc(i * (width - 2 * margin) / LAST_HISTORY_COUNT + margin,
-            (1 - order) * (height - 2 * margin) + margin, radius, 0, 2 * Math.PI);
+    ctx.arc((i + LAST_HISTORY_COUNT - history.length) *
+            (width - 2 * margin) / LAST_HISTORY_COUNT + margin,
+            (1 - order) * (height - 2 * margin) + margin,
+            radius, 0, 2 * Math.PI);
     ctx.closePath();
     ctx.fill();
   }
-  ctx.strokeStyle = 'gray';
+  ctx.strokeStyle = HISTORY_CHAR_BORDER_COLOR;
   ctx.strokeRect(margin, margin, width - 2 * margin, height - 2 * margin);
 }
 
