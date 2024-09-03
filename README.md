@@ -1,3 +1,7 @@
-蔵本モデルシミュレーター
+# 蔵本モデルシミュレーター
 
-[Demo site](https://u-masao.github.io/kuramoto-model-simulator/)
+
+## デモページ
+
+[Demo page](https://u-masao.github.io/kuramoto-model-simulator/)
+
