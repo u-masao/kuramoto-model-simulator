@@ -3,5 +3,5 @@
 
 ## デモページ
 
-[Demo page](https://u-masao.github.io/kuramoto-model-simulator/)
+[Demo page](https://u-masao.github.io/kuramoto-model-simulator/docs/)
 
