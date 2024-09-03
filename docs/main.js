@@ -9,6 +9,7 @@ const MAIN_CANVAS_HEIGHT = 500;
 const DELTA_TIME_SEC = 0.01;
 const INTERVAL_MSEC = 10;
 const MAX_SIMULATE_STEPS = 0;
+const LAST_HISTORY_COUNT = 1000;
 const BACKGROUND_COLOR = '#222222FF';
 const HEARTBEAT_COLOR = '#FFAAAAAA';
 const HISTORY_COLOR = '#FFAAAA0F';
@@ -260,7 +261,7 @@ function drawCenterOfMass(
 
 
 /* update canvas */
-function updateMainCanvas(theta, centerOfMass, history, last_length = 10000) {
+function updateMainCanvas(theta, centerOfMass, history) {
 
   // get canvas
   const main_canvas = document.getElementById('main_canvas');
@@ -295,22 +296,25 @@ function updateMainCanvas(theta, centerOfMass, history, last_length = 10000) {
              area_height];
   drawOrder(ctx, pos, centerOfMass);
 
-  var last_history = history.slice(-last_length);
+  var history = history;
   ctx.fillStyle = HISTORY_COLOR;
-  const radius = 2;
-  last_history.forEach(function({x,y}) {
+  const radius = 5;
+  // history.forEach(function({x,y}) {
+  for (let i = 0;i < history.length; i++) {
+    var {x,y} = history[i];
     // draw
     ctx.beginPath();
     ctx.arc(x * osc_radius + center_x,
             y * osc_radius + center_y,
-            radius, 0, 2 * Math.PI);
+            radius * i / history.length, 0, 2 * Math.PI);
     ctx.closePath();
     ctx.fill();
-  });
+  // });
+  }
 }
 
 /* update history canvas */
-function updateHistoryCanvas(history, last_length = 1000) {
+function updateHistoryCanvas(history) {
 
   if (history.length ==0){
     return;
@@ -334,13 +338,12 @@ function updateHistoryCanvas(history, last_length = 1000) {
   ctx.fillRect(0,0,width,height);
 
   ctx.fillStyle = HISTORY_LINE_COLOR;
-  var last_history = history.slice(-last_length);
-  for (let i = 0; i < last_history.length; i++) {
+  for (let i = 0; i < history.length; i++) {
     var margin = 50;
-    var order = calcOrder(last_history[i]);
+    var order = calcOrder(history[i]);
     const radius = 1;
     ctx.beginPath();
-    ctx.arc(i * (width - 2 * margin) / last_length + margin,
+    ctx.arc(i * (width - 2 * margin) / LAST_HISTORY_COUNT + margin,
             (1 - order) * (height - 2 * margin) + margin, radius, 0, 2 * Math.PI);
     ctx.closePath();
     ctx.fill();
@@ -542,6 +545,7 @@ function simulate() {
 
     // save center of mass
     history.push(centerOfMass);
+    history = history.slice(-LAST_HISTORY_COUNT);
 
     // update counter
     counter ++;
