@@ -348,6 +348,8 @@ function updateHistoryCanvas(history) {
     ctx.closePath();
     ctx.fill();
   }
+  ctx.strokeStyle = 'gray';
+  ctx.strokeRect(margin, margin, width - 2 * margin, height - 2 * margin);
 }
 
 /* display parameters */
