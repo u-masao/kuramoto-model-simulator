@@ -1,5 +1,7 @@
 "use strict";
 
+export { KuramotoModelSimulator };
+
 /* define global variables */
 let interval_timer = null;
 let flag_paused = false;
@@ -558,13 +560,7 @@ function simulate() {
 }
 
 
-/************ window onload section ************/
-
-/* define window onload */
-window.onload = function() {
-
-  // make target element
-  const main_div = document.getElementById('main');
+function KuramotoModelSimulator(main_div) {
 
   // append canvas
   init_canvas(main_div, MAIN_CANVAS_WIDTH, MAIN_CANVAS_HEIGHT);
