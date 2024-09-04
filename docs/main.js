@@ -1,8 +1,8 @@
 "use strict";
 
 /* define global variables */
-var interval_timer = null;
-var flag_paused = false;
+let interval_timer = null;
+let flag_paused = false;
 
 /* define constant values */
 const DEBUG_FLAG = false;
@@ -12,6 +12,8 @@ const DELTA_TIME_SEC = 0.02;
 const INTERVAL_MSEC = 20;
 const MAX_SIMULATE_STEPS = 0;
 const LAST_HISTORY_COUNT = 1000;
+const CENTER_OF_MASS_RADIUS = 5;
+const ELEMENT_RADIUS = 5;
 const BACKGROUND_COLOR = '#222222FF';
 const HEARTBEAT_COLOR = '#FFAAAAAA';
 const HISTORY_COLOR = '#FFAAAA0F';
@@ -20,7 +22,7 @@ const PHASE_COLOR = '#AAAAFF77';
 const ORDER_BACKGROUND_COLOR = '#333333';
 const ORDER_R_COLOR = '#FFAAAAAA';
 const ORDER_ERROR_SCORE_COLOR = '#99FF99FF';
-const CENTER_OF_MASS_COLOR = '#FF9999FF';
+const CENTER_OF_MASS_COLOR = '#FF9999AA';
 const HISTORY_CHAR_BORDER_COLOR = '#555555FF';
 
 
@@ -149,9 +151,9 @@ function init_widgets(parent) {
   const control_panel = document.createElement('div');
   control_panel.id = 'widget_panel';
 
-  var omega_mu = 1;
-  var omega_sigma = 1;
-  var ktp = calcKuramotoTransitionPoint(omega_mu, omega_sigma, 0);
+  const omega_mu = 1;
+  const omega_sigma = 1;
+  const ktp = calcKuramotoTransitionPoint(omega_mu, omega_sigma, 0);
 
   addSlider('n', 30, 2, 60, 1.0, control_panel);
   addSlider('k', ktp, 0, 10, 0.01, control_panel);
@@ -183,7 +185,7 @@ function init_parameter_table(parent) {
 function drawOrder(ctx, pos, centerOfMass) {
 
   // calc order
-  var m = calcOrder(centerOfMass);
+  const r = calcOrder(centerOfMass);
 
   // fill background
   ctx.fillStyle = ORDER_BACKGROUND_COLOR;
@@ -191,10 +193,10 @@ function drawOrder(ctx, pos, centerOfMass) {
 
   // draw order
   ctx.fillStyle = ORDER_R_COLOR;
-  ctx.fillRect(pos[0], pos[1], pos[2] * m, pos[3]);
+  ctx.fillRect(pos[0], pos[1], pos[2] * r, pos[3]);
 
   // draw error order score
-  var error_order_score = Math.min(1.0, -Math.log10(1-m)/15);
+  const error_order_score = Math.min(1.0, -Math.log10(1-r)/15);
   ctx.fillStyle = ORDER_ERROR_SCORE_COLOR;
   ctx.fillRect(pos[0], pos[1], pos[2] * error_order_score, pos[3]);
 }
@@ -205,14 +207,13 @@ function drawHeartbeat(ctx, theta, center_x, center_y, layout_radius) {
   for (let i = 0; i < theta.length; i++) {
 
     // calc position
-    var x = center_x + layout_radius * Math.cos(2 * Math.PI * i / theta.length - Math.PI / 2);
-    var y = center_y + layout_radius * Math.sin(2 * Math.PI * i / theta.length - Math.PI / 2);
+    const x = center_x + layout_radius * Math.cos(2 * Math.PI * i / theta.length - Math.PI / 2);
+    const y = center_y + layout_radius * Math.sin(2 * Math.PI * i / theta.length - Math.PI / 2);
 
     // calc radius
-    var amplitude_ratio = 0.8;
-    var max_radius = 0.4 * layout_radius * 2 * Math.PI / theta.length;
-    max_radius = Math.min(max_radius, layout_radius / 4);
-    var radius = max_radius * (
+    const amplitude_ratio = 0.8;
+    const max_radius = Math.min(0.4 * layout_radius * 2 * Math.PI / theta.length, layout_radius / 4);
+    const radius = max_radius * (
                      amplitude_ratio * (Math.sin(theta[i]) + 1) / 2
                      + (1 - amplitude_ratio));
 
@@ -228,12 +229,12 @@ function drawHeartbeat(ctx, theta, center_x, center_y, layout_radius) {
 
 /* draw phase */
 function drawPhase(
-  ctx, theta, center_x, center_y, layout_radius, element_radius = 5
+  ctx, theta, center_x, center_y, layout_radius, element_radius
 ) {
   for (let i = 0; i < theta.length; i++) {
     // calc positoin
-    var x = center_x + layout_radius * Math.cos(theta[i]);
-    var y = center_y + layout_radius * Math.sin(theta[i]);
+    const x = center_x + layout_radius * Math.cos(theta[i]);
+    const y = center_y + layout_radius * Math.sin(theta[i]);
 
     // draw
     ctx.fillStyle = PHASE_COLOR;
@@ -247,17 +248,16 @@ function drawPhase(
 
 /* draw center of mass */
 function drawCenterOfMass(
-  ctx, centerOfMass, center_x, center_y, layout_radius, element_radius = 5
+  ctx, centerOfMass, center_x, center_y, layout_radius, element_radius 
 ) {
-  var {x, y} = centerOfMass;
-
-  x = x * layout_radius + center_x;
-  y = y * layout_radius + center_y;
+  const {x, y} = centerOfMass;
+  const draw_x = x * layout_radius + center_x;
+  const draw_y = y * layout_radius + center_y;
 
   // draw
   ctx.fillStyle = CENTER_OF_MASS_COLOR;
   ctx.beginPath();
-  ctx.arc(x, y, element_radius, 0, 2 * Math.PI);
+  ctx.arc(draw_x, draw_y, element_radius, 0, 2 * Math.PI);
   ctx.closePath();
   ctx.fill();
 }
@@ -270,12 +270,14 @@ function updateMainCanvas(theta, centerOfMass, history) {
   const main_canvas = document.getElementById('main_canvas');
 
   // get size
-  var width = main_canvas.width;
-  var height = main_canvas.height;
-  var center_x = width / 2;
-  var center_y = height / 2;
+  const width = main_canvas.width;
+  const height = main_canvas.height;
+  const center_x = width / 2;
+  const center_y = height / 2;
+  const com_radius = CENTER_OF_MASS_RADIUS;
+  const element_radius = ELEMENT_RADIUS;
 
-  var osc_radius = Math.min(width, height) / 5;
+  const osc_radius = Math.min(width, height) / 5;
 
   // get context
   const ctx = main_canvas.getContext('2d');
@@ -286,33 +288,29 @@ function updateMainCanvas(theta, centerOfMass, history) {
 
   // draw oscillators
   drawHeartbeat(ctx, theta, center_x, center_y, Math.min(width, height) / 3);
-  drawPhase(ctx, theta, center_x, center_y, osc_radius);
-  drawCenterOfMass(ctx, centerOfMass, center_x, center_y, osc_radius);
+  drawPhase(ctx, theta, center_x, center_y, osc_radius, element_radius);
+  drawCenterOfMass(ctx, centerOfMass, center_x, center_y, osc_radius, com_radius);
 
   // draw synchronous gauge
-  var margin_bottom = 20;
-  var margin_sides = width / 5;
-  var area_height = 5;
-  var pos = [margin_sides,
+  const margin_bottom = 20;
+  const margin_sides = width / 5;
+  const area_height = 5;
+  const pos = [margin_sides,
              height - margin_bottom- area_height,
              width - 2 * margin_sides,
              area_height];
   drawOrder(ctx, pos, centerOfMass);
 
-  var history = history;
   ctx.fillStyle = HISTORY_COLOR;
-  const radius = 5;
-  // history.forEach(function({x,y}) {
+
   for (let i = 0;i < history.length; i++) {
-    var {x,y} = history[i];
-    // draw
+    const {x,y} = history[i];
     ctx.beginPath();
     ctx.arc(x * osc_radius + center_x,
             y * osc_radius + center_y,
-            radius * i / history.length, 0, 2 * Math.PI);
+            com_radius * i / history.length, 0, 2 * Math.PI);
     ctx.closePath();
     ctx.fill();
-  // });
   }
 }
 
@@ -327,11 +325,12 @@ function updateHistoryCanvas(history) {
   const history_canvas = document.getElementById('history_canvas');
 
   // get size
-  var width = history_canvas.width;
-  var height = history_canvas.height;
-  var center_x = width / 2;
-  var center_y = height/ 2;
-  var r = 0.4 * Math.min(width, height);
+  const width = history_canvas.width;
+  const height = history_canvas.height;
+  const center_x = width / 2;
+  const center_y = height/ 2;
+  const r = 0.4 * Math.min(width, height);
+  const margin = 50;
 
   // get context
   const ctx = history_canvas.getContext('2d');
@@ -342,8 +341,7 @@ function updateHistoryCanvas(history) {
 
   ctx.fillStyle = HISTORY_LINE_COLOR;
   for (let i = 0; i < history.length; i++) {
-    var margin = 50;
-    var order = calcOrder(history[i]);
+    const order = calcOrder(history[i]);
     const radius = 1;
     ctx.beginPath();
     ctx.arc((i + LAST_HISTORY_COUNT - history.length) *
@@ -390,18 +388,17 @@ function displayParameters(omega) {
   const tbody = document.createElement('tbody');
   for (let i = 0; i < omega.length; i++) {
     const tr = document.createElement('tr');
-    var td;
+    const td_number = document.createElement('td');
+    const td_omega = document.createElement('td');
 
     // number
-    td = document.createElement('td');
-    td.appendChild(document.createTextNode(String(i)));
-    tr.appendChild(td);
+    td_number.appendChild(document.createTextNode(String(i)));
+    tr.appendChild(td_number);
 
     // initial omega
-    var fixed_float = Number.parseFloat(omega[i]).toFixed(3);
-    td = document.createElement('td');
-    td.appendChild(document.createTextNode(fixed_float));
-    tr.appendChild(td);
+    const fixed_float = Number.parseFloat(omega[i]).toFixed(3);
+    td_omega.appendChild(document.createTextNode(fixed_float));
+    tr.appendChild(td_omega);
     tbody.appendChild(tr);
   }
   table.appendChild(tbody);
@@ -412,8 +409,8 @@ function displayParameters(omega) {
 /* display kuramoto trainsition point */
 function displayKuramotoTransitionPoint(omega_mu, omega_sigma) {
   const p = document.getElementById('kuramoto_transition_point');
-  var ktp = calcKuramotoTransitionPoint(omega_mu, omega_sigma, 0);
-  var ktp_fixed = Number.parseFloat(ktp).toFixed(2);
+  const ktp = calcKuramotoTransitionPoint(omega_mu, omega_sigma, 0);
+  const ktp_fixed = Number.parseFloat(ktp).toFixed(2);
   p.textContent = '蔵本転移点(Kuramoto transition point): k=' + ktp_fixed;
 }
 
@@ -430,8 +427,8 @@ function rnorm(mu, sigma){
 
 /* calc center of mass */
 function calcCenterOfMass(theta) {
-  var x = 0.0;
-  var y = 0.0;
+  let x = 0.0;
+  let y = 0.0;
   const n = theta.length;
   for (let i = 0; i < n; i++) {
     x += Math.cos(theta[i]);
@@ -461,18 +458,18 @@ function calcArc(centerOfMass) {
 
 /* calc kuramoto transition point */
 function calcKuramotoTransitionPoint(mu, sigma, omega) {
-  var g_omega = 1 / Math.sqrt(2 * Math.PI * (sigma ^ 2))
+  const g_omega = 1 / Math.sqrt(2 * Math.PI * (sigma ^ 2))
                 * Math.exp(- (omega - mu) ^ 2 / 2);
-  var k_c = 2 / (Math.PI * g_omega);
+  const k_c = 2 / (Math.PI * g_omega);
   return k_c;
 }
 
 
 /* calc kuramoto model naive implement */
 function kuramoto_formula(omega, k, n, theta) {
-  var theta_dt = new Array(n);
+  const theta_dt = new Array(n);
   for (let i = 0; i < n; i++) {
-    var sum_sine = 0.0;
+    let sum_sine = 0.0;
     for (let j = 0; j < n; j++) {
       sum_sine += Math.sin(theta[j] - theta[i]);
     }
@@ -484,9 +481,9 @@ function kuramoto_formula(omega, k, n, theta) {
 
 /* calc kuramoto model transformation */
 function kuramoto_formula_fast(omega, k, n, theta, centerOfMass) {
-  var theta_dt = new Array(n);
-  var r = calcOrder(centerOfMass);
-  var large_theta = calcArc(centerOfMass);
+  const theta_dt = new Array(n);
+  const r = calcOrder(centerOfMass);
+  const large_theta = calcArc(centerOfMass);
   for (let i = 0; i < n; i++) {
     theta_dt[i] = omega[i] + k * r * Math.sin(large_theta - theta[i]);
   }
@@ -500,17 +497,17 @@ function kuramoto_formula_fast(omega, k, n, theta, centerOfMass) {
 function simulate() {
 
   // init params
-  var omega_mu = parseFloat( document.getElementById('omega_mu').value)
-  var omega_sigma= parseFloat( document.getElementById('omega_sigma').value)
-  var n = parseInt( document.getElementById('n').value, 10);
-  var k = parseInt( document.getElementById('k').value, 10);
-  var dt = DELTA_TIME_SEC;
-  var limit = MAX_SIMULATE_STEPS;
-  var interval_ms = INTERVAL_MSEC;
+  const omega_mu = parseFloat( document.getElementById('omega_mu').value)
+  const omega_sigma= parseFloat( document.getElementById('omega_sigma').value)
+  const n = parseInt( document.getElementById('n').value, 10);
+  const k = parseInt( document.getElementById('k').value, 10);
+  const dt = DELTA_TIME_SEC;
+  const limit = MAX_SIMULATE_STEPS;
+  const interval_ms = INTERVAL_MSEC;
 
   // init values
-  var omega = new Array(n);
-  var theta = new Array(n);
+  const omega = new Array(n);
+  const theta = new Array(n);
   for (let i = 0; i < n; i++) {
     omega[i] = rnorm(omega_mu, omega_sigma);
     theta[i] = Math.random() * 2 * Math.PI;
@@ -523,8 +520,8 @@ function simulate() {
   displayKuramotoTransitionPoint(omega_mu, omega_sigma);
 
   // interval steps
-  var counter = 0;
-  var history = [];
+  let counter = 0;
+  let history = [];
   interval_timer = setInterval(function() {
 
     // return if paused
@@ -533,14 +530,14 @@ function simulate() {
     }
 
     // calc center of mass
-    var centerOfMass = calcCenterOfMass(theta);
+    const centerOfMass = calcCenterOfMass(theta);
 
     // update canvas
     updateMainCanvas(theta, centerOfMass, history);
     updateHistoryCanvas(history);
 
     // update theta
-    var theta_dt = kuramoto_formula_fast(omega, k, n, theta, centerOfMass);
+    const theta_dt = kuramoto_formula_fast(omega, k, n, theta, centerOfMass);
     for (let j = 0; j < n; j++) {
       theta[j] += theta_dt[j] * dt;
     }
