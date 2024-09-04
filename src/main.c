@@ -28,14 +28,15 @@ void kuramoto_formula_fast(int n, double k, double *omega, double *theta,
 }
 
 void simulation(int n, double k, double *omega, double *theta, int loop_count,
-                double time_delta, double *com_x, double *com_y) {
+                double time_delta, double *com_x, double *com_y, int verbose) {
   double *theta_dt;
   theta_dt = (double *)calloc(n, sizeof(double));
 
-  printf("==== initial variables\n");
-  printParams(n, omega, theta);
-
-  printf("==== simulation\n");
+  if (verbose > 0) {
+    printf("==== initial variables\n");
+    printParams(n, omega, theta);
+    printf("==== simulation\n");
+  }
 
   for (int i = 0; i < loop_count; i++) {
     double R;
@@ -47,8 +48,10 @@ void simulation(int n, double k, double *omega, double *theta, int loop_count,
       R = 1.0;
     }
     Theta = atan2(com_y[i], com_x[i]);
-    printf("Step: %d, R: %f, Theta: %f, com_x: %f, com_y: %f\n", i, R, Theta,
-           com_x[i], com_y[i]);
+    if (verbose > 0) {
+      printf("Step: %d, R: %f, Theta: %f, com_x: %f, com_y: %f\n", i, R, Theta,
+             com_x[i], com_y[i]);
+    }
     kuramoto_formula_fast(n, k, omega, theta, R, Theta, theta_dt);
     for (int j = 0; j < n; j++) {
       theta[j] += theta_dt[j] * time_delta;
@@ -77,13 +80,14 @@ void kuramoto_model_simulator(const int n, const double k,
                               const double time_delta, const int loop_count,
                               const double mu, const double sigma,
                               const unsigned int seed, double *omega,
-                              double *theta, double *com_x, double *com_y) {
+                              double *theta, double *com_x, double *com_y,
+                              int verbose) {
 
   // init variables
   init_variables(n, mu, sigma, seed, omega, theta);
 
   // run simulation
-  simulation(n, k, omega, theta, loop_count, time_delta, com_x, com_y);
+  simulation(n, k, omega, theta, loop_count, time_delta, com_x, com_y, verbose);
 }
 
 int main(int argc, char const *argv[]) {
@@ -94,7 +98,8 @@ int main(int argc, char const *argv[]) {
   const int loop_count = 1000;
   const double mu = 1.0;
   const double sigma = 1.0;
-  unsigned int seed;
+  unsigned int seed = (unsigned int)time(NULL);
+  int verbose = 1;
 
   // simulated data
   double *omega;
@@ -107,9 +112,7 @@ int main(int argc, char const *argv[]) {
   com_x = (double *)calloc(loop_count, sizeof(double));
   com_y = (double *)calloc(loop_count, sizeof(double));
 
-  seed = (unsigned int)time(NULL);
-
   kuramoto_model_simulator(n, k, time_delta, loop_count, mu, sigma, seed, omega,
-                           theta, com_x, com_y);
+                           theta, com_x, com_y, verbose);
   return 0;
 }
