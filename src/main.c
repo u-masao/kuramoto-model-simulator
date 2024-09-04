@@ -57,6 +57,8 @@ void simulation(int n, double k, double *omega, double *theta, int loop_count,
       theta[j] += theta_dt[j] * time_delta;
     }
   }
+
+  free(theta_dt);
 }
 
 double frand() { return (double)rand() / ((double)RAND_MAX + 1); }
