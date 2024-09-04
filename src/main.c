@@ -1,10 +1,7 @@
-#include "SFMT.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
-#define PI 3.141592653589793238462643
 
 void printParams(int n, double *omega, double *theta) {
   for (int i = 0; i < n; i++) {
@@ -63,29 +60,18 @@ void simulation(int n, double k, double *omega, double *theta, int loop_count,
 
 double frand() { return (double)rand() / ((double)RAND_MAX + 1); }
 
-double frand_mt(sfmt_t *sfmt) { return sfmt_genrand_real2(sfmt); }
-
 double rnorm(double mu, double sigma) {
-  return mu + sigma * sqrt(-2.0 * log(frand())) * cos(2.0 * PI * frand());
-}
-
-double rnorm_mt(sfmt_t *sfmt, double mu, double sigma) {
-  return mu + sigma * sqrt(-2.0 * log(frand_mt(sfmt))) *
-                  cos(2.0 * PI * frand_mt(sfmt));
+  return mu + sigma * sqrt(-2.0 * log(frand())) * cos(2.0 * M_PI * frand());
 }
 
 void init_variables(const int n, const double mu, const double sigma,
                     const unsigned int seed, double *omega, double *theta) {
   // setup random
-  sfmt_t sfmt;
-  sfmt_init_gen_rand(&sfmt, seed);
-  // srand(seed);
+  srand(seed);
 
   for (int i = 0; i < n; i++) {
-    omega[i] = rnorm_mt(&sfmt, mu, sigma);
-    theta[i] = 2.0 * PI * frand_mt(&sfmt);
-    // omega[i] = rnorm(&sfmt, mu, sigma);
-    // theta[i] = 2.0 * PI * frand_mt(&sfmt);
+    omega[i] = rnorm(mu, sigma);
+    theta[i] = 2.0 * M_PI * frand();
   }
 }
 
