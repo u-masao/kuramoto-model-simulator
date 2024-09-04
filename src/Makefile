@@ -1,10 +1,18 @@
-all: ksim ksim.so
+all: demo
 
-ksim: format main.c
+ksim: main.c
+	clang-format -i main.c
 	gcc -O3 -Wall -o ksim main.c -lm
 
-ksim.so: format main.c
+ksim.so: main.c
+	clang-format -i main.c
 	gcc -shared -O3 -Wall -o ksim.so main.c -lm
 
-format:
-	clang-format -i main.c
+demo: lint ksim.so ksim.py
+	./ksim
+	poetry run python ksim.py
+
+lint:
+	poetry run isort .
+	poetry run black . -l 79
+	poetry run flake8 .
