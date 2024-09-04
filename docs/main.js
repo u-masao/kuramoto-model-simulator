@@ -1,3 +1,5 @@
+"use strict";
+
 /* define global variables */
 var interval_timer = null;
 var flag_paused = false;
