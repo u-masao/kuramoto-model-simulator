@@ -1,4 +1,5 @@
 import ctypes
+import json
 
 import click
 
@@ -87,8 +88,12 @@ def kuramoto_model_simulator(
     "--ksim_library_path", type=click.Path(exists=True), default="./ksim.so"
 )
 def main(**kwargs):
-    result = kuramoto_model_simulator(kwargs["ksim_library_path"])
-    print(result)
+    result = kuramoto_model_simulator(
+        kwargs["ksim_library_path"],
+        loop_count=100,
+        n=50,
+    )
+    print(json.dumps(result))
 
 
 if __name__ == "__main__":
