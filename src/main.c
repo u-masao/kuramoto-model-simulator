@@ -28,7 +28,7 @@ void kuramoto_formula_fast(int n, double k, double *omega, double *theta,
 }
 
 void simulation(int n, double k, double *omega, double *theta, int loop_count,
-                double time_delta) {
+                double time_delta, double *com_x, double *com_y) {
   double *theta_dt;
   theta_dt = (double *)calloc(n, sizeof(double));
 
@@ -38,19 +38,17 @@ void simulation(int n, double k, double *omega, double *theta, int loop_count,
   printf("==== simulation\n");
 
   for (int i = 0; i < loop_count; i++) {
-    double com_x;
-    double com_y;
     double R;
     double Theta;
 
-    calcCenterOfMass(theta, n, &com_x, &com_y);
-    R = sqrt(pow(com_x, 2) + pow(com_y, 2));
+    calcCenterOfMass(theta, n, &com_x[i], &com_y[i]);
+    R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
     if (R > 1.0) {
       R = 1.0;
     }
-    Theta = atan2(com_y, com_x);
+    Theta = atan2(com_y[i], com_x[i]);
     printf("Step: %d, R: %f, Theta: %f, com_x: %f, com_y: %f\n", i, R, Theta,
-           com_x, com_y);
+           com_x[i], com_y[i]);
     kuramoto_formula_fast(n, k, omega, theta, R, Theta, theta_dt);
     for (int j = 0; j < n; j++) {
       theta[j] += theta_dt[j] * time_delta;
@@ -78,19 +76,14 @@ void init_variables(const int n, const double mu, const double sigma,
 void kuramoto_model_simulator(const int n, const double k,
                               const double time_delta, const int loop_count,
                               const double mu, const double sigma,
-                              const unsigned int seed) {
-  // variables
-  double *omega;
-  double *theta;
-
-  omega = (double *)calloc(n, sizeof(double));
-  theta = (double *)calloc(n, sizeof(double));
+                              const unsigned int seed, double *omega,
+                              double *theta, double *com_x, double *com_y) {
 
   // init variables
   init_variables(n, mu, sigma, seed, omega, theta);
 
   // run simulation
-  simulation(n, k, omega, theta, loop_count, time_delta);
+  simulation(n, k, omega, theta, loop_count, time_delta, com_x, com_y);
 }
 
 int main(int argc, char const *argv[]) {
@@ -103,8 +96,20 @@ int main(int argc, char const *argv[]) {
   const double sigma = 1.0;
   unsigned int seed;
 
+  // simulated data
+  double *omega;
+  double *theta;
+  double *com_x;
+  double *com_y;
+
+  omega = (double *)calloc(n, sizeof(double));
+  theta = (double *)calloc(n, sizeof(double));
+  com_x = (double *)calloc(loop_count, sizeof(double));
+  com_y = (double *)calloc(loop_count, sizeof(double));
+
   seed = (unsigned int)time(NULL);
 
-  kuramoto_model_simulator(n, k, time_delta, loop_count, mu, sigma, seed);
+  kuramoto_model_simulator(n, k, time_delta, loop_count, mu, sigma, seed, omega,
+                           theta, com_x, com_y);
   return 0;
 }
