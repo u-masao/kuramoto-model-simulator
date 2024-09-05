@@ -1,2 +1,3 @@
 src/ksim_mt
 *.sw[po]
+__pycache__
