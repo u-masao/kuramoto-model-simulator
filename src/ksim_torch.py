@@ -51,17 +51,17 @@ def kuramoto_model_simulator_pt(
     device=None,
 ):
     if device is None:
-        device = (
+        device_used = (
             torch.device("cuda")
             if torch.cuda.is_available()
             else torch.device("cpu")
         )
     else:
-        device = torch.device(device)
+        device_used = torch.device(device)
 
-    omega, theta = init_variables(n, mu, sigma, seed, device)
+    omega, theta = init_variables(n, mu, sigma, seed, device_used)
     com_x, com_y = simulation(
-        k, omega, theta, loop_count, time_delta, verbose, device
+        k, omega, theta, loop_count, time_delta, verbose, device_used
     )
 
     params = [
@@ -73,7 +73,9 @@ def kuramoto_model_simulator_pt(
         "sigma",
         "seed",
         "verbose",
+        "device",
     ]
+
     result = {}
     result["params"] = {}
     for name in params:
