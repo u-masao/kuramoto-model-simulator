@@ -3,43 +3,72 @@
 #include <stdlib.h>
 #include <time.h>
 
-__device__ void calcThetaDt(int n, double *omega, double *theta, double k,
-                                double R, double Theta, double *theta_dt) {
+__global__ void calcCenterOfMass(int n, int i, double *theta, double *com_x,
+                                 double *com_y, double *R, double *Theta) {
   for (int j = 0; j < n; j++) {
-    theta_dt[j] = omega[j] + k * R * sin(Theta - theta[j]);
+    com_x[i] += cos(theta[j]);
+    com_y[i] += sin(theta[j]);
+  }
+  com_x[i] /= n;
+  com_y[i] /= n;
+  *R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
+  *Theta = atan2(com_y[i], com_x[i]);
+}
+
+__global__ void calcThetaDt(int n, double *omega, double *theta, double k,
+                            double *R, double *Theta, double *theta_dt) {
+  for (int j = 0; j < n; j++) {
+    theta_dt[j] = omega[j] + k * (*R) * sin(*Theta - theta[j]);
   }
 }
 
-__device__ void calcNextTheta(int n, double *theta, double *theta_dt,
+__global__ void calcNextTheta(int n, double *theta, double *theta_dt,
                               double time_delta) {
   for (int j = 0; j < n; j++) {
     theta[j] += theta_dt[j] * time_delta;
   }
 }
 
-__global__ void simulation(int n, double k, double *omega, double *theta,
-                           int loop_count, double time_delta, double *com_x,
-                           double *com_y, double *theta_dt, int verbose) {
+void simulation(int n, double k, double *omega, double *theta, int loop_count,
+                double time_delta, double *com_x, double *com_y,
+                double *theta_dt, int verbose) {
+
+  double *d_R;
+  double *d_Theta;
+  cudaError_t error;
+
+  cudaMalloc((void **)&d_R, sizeof(double) * 1);
+  cudaMalloc((void **)&d_Theta, sizeof(double) * 1);
 
   for (int i = 0; i < loop_count; i++) {
-    double R;
-    double Theta;
+    printf("step: %d\n", i);
 
     // calc center o fmass
-    for (int j = 0; j < n; j++) {
-      com_x[i] += cos(theta[j]);
-      com_y[i] += sin(theta[j]);
+    calcCenterOfMass<<<1, 1>>>(n, i, theta, com_x, com_y, d_R, d_Theta);
+    cudaDeviceSynchronize();
+    error = cudaGetLastError();
+    if (error != 0) {
+      printf("error: %d : %s\n", error, cudaGetErrorString(error));
+      return;
     }
-    com_x[i] /= n;
-    com_y[i] /= n;
-    R = sqrt(pow(*com_x, 2) + pow(*com_y, 2));
-    Theta = atan2(*com_y, *com_x);
 
     // calc theta_dt
-    calcThetaDt(n, omega, theta, k, R, Theta, theta_dt);
+    calcThetaDt<<<1, 1>>>(n, omega, theta, k, d_R, d_Theta, theta_dt);
+    cudaDeviceSynchronize();
+    error = cudaGetLastError();
+    if (error != 0) {
+      printf("error: %d : %s\n", error, cudaGetErrorString(error));
+      return;
+    }
 
     // calc next theta
-    calcNextTheta(n, theta, theta_dt, time_delta);
+    calcNextTheta<<<1, 1>>>(n, theta, theta_dt, time_delta);
+    cudaDeviceSynchronize();
+    error = cudaGetLastError();
+    if (error != 0) {
+      printf("error: %d : %s\n", error, cudaGetErrorString(error));
+      return;
+    }
   }
 }
 
@@ -88,14 +117,15 @@ void kuramoto_model_simulator(const int n, const double k,
   cudaMemcpy(d_theta, theta, sizeof(double) * n, cudaMemcpyHostToDevice);
 
   // run simulation
-  simulation<<<1, 1>>>(n, k, d_omega, d_theta, loop_count, time_delta, d_com_x,
-                       d_com_y, d_theta_dt, verbose);
+  simulation(n, k, d_omega, d_theta, loop_count, time_delta, d_com_x, d_com_y,
+             d_theta_dt, verbose);
 
   cudaMemcpy(com_x, d_com_x, sizeof(double) * loop_count,
              cudaMemcpyDeviceToHost);
   cudaMemcpy(com_y, d_com_y, sizeof(double) * loop_count,
              cudaMemcpyDeviceToHost);
 
+  cudaDeviceSynchronize();
   cudaFree(d_omega);
   cudaFree(d_theta);
   cudaFree(d_com_x);
@@ -104,6 +134,7 @@ void kuramoto_model_simulator(const int n, const double k,
 }
 
 int main(int argc, char const *argv[]) {
+
   // simulation condition
   const int n = 30;
   const double k = 4;
@@ -128,7 +159,7 @@ int main(int argc, char const *argv[]) {
   kuramoto_model_simulator(n, k, time_delta, loop_count, mu, sigma, seed, omega,
                            theta, com_x, com_y, verbose);
 
-  cudaDeviceSynchronize();
+  printf("==== output\n");
   for (int i = 0; i < loop_count; i++) {
     double R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
     double Theta = atan2(com_y[i], com_x[i]);
