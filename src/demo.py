@@ -12,8 +12,8 @@ from ksim_torch import kuramoto_model_simulator_pt
 )
 def main(**kwargs):
 
-    n = 50
-    loop_count = 100
+    n = 3000
+    loop_count = 1000
 
     result = kuramoto_model_simulator(
         kwargs["ksim_library_path"],
