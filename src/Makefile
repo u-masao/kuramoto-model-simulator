@@ -1,9 +1,11 @@
 all: demo
 
-demo: ksim ksim.so ksim_cu ksim_c.py ksim_torch.py
-	./ksim
+demo: ksim ksim.so ksim_c.py ksim_torch.py
+	time ./ksim
+	time poetry run python demo.py
+
+demo_cu: ksim_cu
 	./ksim_cu
-	poetry run python demo.py
 
 ksim: ksim.c
 	gcc -O3 -Wall -o ksim ksim.c -lm
