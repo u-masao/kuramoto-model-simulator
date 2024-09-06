@@ -3,34 +3,43 @@
 #include <stdlib.h>
 #include <time.h>
 
+__device__ void calcThetaDt(int n, double *omega, double *theta, double k,
+                                double R, double Theta, double *theta_dt) {
+  for (int j = 0; j < n; j++) {
+    theta_dt[j] = omega[j] + k * R * sin(Theta - theta[j]);
+  }
+}
+
+__device__ void calcNextTheta(int n, double *theta, double *theta_dt,
+                              double time_delta) {
+  for (int j = 0; j < n; j++) {
+    theta[j] += theta_dt[j] * time_delta;
+  }
+}
+
 __global__ void simulation(int n, double k, double *omega, double *theta,
                            int loop_count, double time_delta, double *com_x,
                            double *com_y, double *theta_dt, int verbose) {
 
-  double R;
-  double Theta;
-
   for (int i = 0; i < loop_count; i++) {
+    double R;
+    double Theta;
 
-    // calc center of mass
-    com_x[i] = 0.0;
-    com_y[i] = 0.0;
+    // calc center o fmass
     for (int j = 0; j < n; j++) {
       com_x[i] += cos(theta[j]);
       com_y[i] += sin(theta[j]);
     }
     com_x[i] /= n;
     com_y[i] /= n;
+    R = sqrt(pow(*com_x, 2) + pow(*com_y, 2));
+    Theta = atan2(*com_y, *com_x);
 
-    R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
-    Theta = atan2(com_y[i], com_x[i]);
+    // calc theta_dt
+    calcThetaDt(n, omega, theta, k, R, Theta, theta_dt);
 
-    for (int j = 0; j < n; j++) {
-      theta_dt[j] = omega[j] + k * R * sin(Theta - theta[j]);
-    }
-    for (int j = 0; j < n; j++) {
-      theta[j] += theta_dt[j] * time_delta;
-    }
+    // calc next theta
+    calcNextTheta(n, theta, theta_dt, time_delta);
   }
 }
 
@@ -69,6 +78,8 @@ void kuramoto_model_simulator(const int n, const double k,
   cudaMalloc((void **)&d_theta_dt, sizeof(double) * n);
   cudaMalloc((void **)&d_com_x, sizeof(double) * loop_count);
   cudaMalloc((void **)&d_com_y, sizeof(double) * loop_count);
+  cudaMemset(d_com_x, 0.0, sizeof(double) * loop_count);
+  cudaMemset(d_com_y, 0.0, sizeof(double) * loop_count);
 
   // init variables
   init_variables(n, mu, sigma, seed, omega, theta);
