@@ -29,29 +29,15 @@ void kuramoto_formula_fast(int n, double k, double *omega, double *theta,
 
 void simulation(int n, double k, double *omega, double *theta, int loop_count,
                 double time_delta, double *com_x, double *com_y, int verbose) {
+  double R;
+  double Theta;
   double *theta_dt;
-  theta_dt = (double *)calloc(n, sizeof(double));
-
-  if (verbose > 0) {
-    printf("==== initial variables\n");
-    printParams(n, omega, theta);
-    printf("==== simulation\n");
-  }
+  theta_dt = (double *)malloc(n * sizeof(double));
 
   for (int i = 0; i < loop_count; i++) {
-    double R;
-    double Theta;
-
     calcCenterOfMass(theta, n, &com_x[i], &com_y[i]);
     R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
-    if (R > 1.0) {
-      R = 1.0;
-    }
     Theta = atan2(com_y[i], com_x[i]);
-    if (verbose > 0) {
-      printf("Step: %d, R: %f, Theta: %f, com_x: %f, com_y: %f\n", i, R, Theta,
-             com_x[i], com_y[i]);
-    }
     kuramoto_formula_fast(n, k, omega, theta, R, Theta, theta_dt);
     for (int j = 0; j < n; j++) {
       theta[j] += theta_dt[j] * time_delta;
@@ -94,7 +80,7 @@ void kuramoto_model_simulator(const int n, const double k,
 
 int main(int argc, char const *argv[]) {
   // simulation condition
-  const int n = 30;
+  const int n = 3000;
   const double k = 4;
   const double time_delta = 0.01;
   const int loop_count = 1000;
@@ -116,5 +102,14 @@ int main(int argc, char const *argv[]) {
 
   kuramoto_model_simulator(n, k, time_delta, loop_count, mu, sigma, seed, omega,
                            theta, com_x, com_y, verbose);
+
+  printf("==== output\n");
+  for (int i = 0; i < loop_count; i++) {
+    double R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
+    double Theta = atan2(com_y[i], com_x[i]);
+    printf("R: %f, Theta: %f, com_x: %f, com_y: %f\n", R, Theta, com_x[i],
+           com_y[i]);
+  }
+
   return 0;
 }
