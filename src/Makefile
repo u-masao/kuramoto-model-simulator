@@ -6,7 +6,7 @@ ksim: ksim.c
 ksim.so: ksim.c
 	gcc -shared -O3 -Wall -o ksim.so ksim.c -lm
 
-demo: ksim.so ksim_c.py ksim_torch.py
+demo: ksim ksim.so ksim_c.py ksim_torch.py
 	./ksim
 	poetry run python demo.py
 
