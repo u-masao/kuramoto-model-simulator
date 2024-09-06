@@ -3,16 +3,16 @@
 #include <stdlib.h>
 #include <time.h>
 
-__global__ void calcCenterOfMass(int n, int i, double *theta, double *com_x,
+__global__ void calcCenterOfMass(int n, double *theta, double *com_x,
                                  double *com_y, double *R, double *Theta) {
   for (int j = 0; j < n; j++) {
-    com_x[i] += cos(theta[j]);
-    com_y[i] += sin(theta[j]);
+    *com_x += cos(theta[j]);
+    *com_y += sin(theta[j]);
   }
-  com_x[i] /= n;
-  com_y[i] /= n;
-  *R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
-  *Theta = atan2(com_y[i], com_x[i]);
+  *com_x /= n;
+  *com_y /= n;
+  *R = sqrt(pow(*com_x, 2) + pow(*com_y, 2));
+  *Theta = atan2(*com_y, *com_x);
 }
 
 __global__ void calcThetaDt(int n, double *omega, double *theta, double k,
@@ -44,8 +44,8 @@ void simulation(int n, double k, double *omega, double *theta, int loop_count,
     printf("step: %d\n", i);
 
     // calc center o fmass
-    calcCenterOfMass<<<1, 1>>>(n, i, theta, com_x, com_y, d_R, d_Theta);
-    cudaDeviceSynchronize();
+    calcCenterOfMass<<<1, 1>>>(n, theta, &com_x[i], &com_y[i], d_R, d_Theta);
+    // cudaDeviceSynchronize();
     error = cudaGetLastError();
     if (error != 0) {
       printf("error: %d : %s\n", error, cudaGetErrorString(error));
@@ -54,7 +54,7 @@ void simulation(int n, double k, double *omega, double *theta, int loop_count,
 
     // calc theta_dt
     calcThetaDt<<<1, 1>>>(n, omega, theta, k, d_R, d_Theta, theta_dt);
-    cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
     error = cudaGetLastError();
     if (error != 0) {
       printf("error: %d : %s\n", error, cudaGetErrorString(error));
@@ -63,7 +63,7 @@ void simulation(int n, double k, double *omega, double *theta, int loop_count,
 
     // calc next theta
     calcNextTheta<<<1, 1>>>(n, theta, theta_dt, time_delta);
-    cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
     error = cudaGetLastError();
     if (error != 0) {
       printf("error: %d : %s\n", error, cudaGetErrorString(error));
