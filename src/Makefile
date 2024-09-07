@@ -1,16 +1,18 @@
 all: demo
 
+## cpu
 demo: ksim ksim.so ksim_c.py ksim_torch.py
 	./ksim
 	poetry run python demo.py
 
-ksim: ksim.c
-	gcc -O3 -Wall -o ksim ksim.c -lm
+ksim: ksim_c.c
+	gcc -O3 -Wall -o ksim ksim_c.c -lm
 
-ksim.so: ksim.c
-	gcc -shared -O3 -Wall -o ksim.so ksim.c -lm
+ksim.so: ksim_c.c
+	gcc -shared -O3 -Wall -o ksim.so ksim_c.c -lm
 
 
+## duca
 demo_cu: ksim_cu
 	./ksim_cu
 
@@ -21,8 +23,9 @@ ksim_cu.so: ksim.cu
 	nvcc ksim.cu -o ksim_cu.so -diag-suppress '549' --compiler-options '-fPIC' -shared
 
 
+## lint
 lint_c:
-	clang-format -i ksim.c ksim.cu
+	clang-format -i ksim_c.c ksim.cu
 
 lint: lint_c
 	poetry run isort .
