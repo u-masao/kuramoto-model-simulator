@@ -28,7 +28,7 @@ def kuramoto_model_simulator(
     ctypes.cdll.LoadLibrary(library_path)
     ksim = ctypes.CDLL(library_path)
 
-    ksim.kuramoto_model_simulator.argtypes = [
+    ksim.kuramoto_model_simulator_c.argtypes = [
         ctypes.c_int,  # n
         ctypes.c_double,  # k
         ctypes.c_double,  # time_delta
@@ -43,7 +43,7 @@ def kuramoto_model_simulator(
         ctypes.c_int,  # verbose
     ]
 
-    ksim.kuramoto_model_simulator(
+    ksim.kuramoto_model_simulator_c(
         n,
         k,
         time_delta,

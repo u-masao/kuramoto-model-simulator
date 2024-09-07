@@ -1,3 +1,4 @@
+#include "ksim_c.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,12 +65,12 @@ void init_variables(const int n, const double mu, const double sigma,
   }
 }
 
-void kuramoto_model_simulator(const int n, const double k,
-                              const double time_delta, const int loop_count,
-                              const double mu, const double sigma,
-                              const unsigned int seed, double *omega,
-                              double *theta, double *com_x, double *com_y,
-                              int verbose) {
+void kuramoto_model_simulator_c(const int n, const double k,
+                                const double time_delta, const int loop_count,
+                                const double mu, const double sigma,
+                                const unsigned int seed, double *omega,
+                                double *theta, double *com_x, double *com_y,
+                                int verbose) {
 
   // init variables
   init_variables(n, mu, sigma, seed, omega, theta);
@@ -100,8 +101,8 @@ int main(int argc, char const *argv[]) {
   com_x = (double *)calloc(loop_count, sizeof(double));
   com_y = (double *)calloc(loop_count, sizeof(double));
 
-  kuramoto_model_simulator(n, k, time_delta, loop_count, mu, sigma, seed, omega,
-                           theta, com_x, com_y, verbose);
+  kuramoto_model_simulator_c(n, k, time_delta, loop_count, mu, sigma, seed,
+                             omega, theta, com_x, com_y, verbose);
 
   printf("==== output\n");
   for (int i = 0; i < loop_count; i++) {
