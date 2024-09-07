@@ -9,42 +9,53 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
                               double *R, double *Theta, double *theta_cos,
                               double *theta_sin, int mt_flag) {
 
-  int j;
-  j = blockIdx.x * blockDim.x + threadIdx.x;
+  int idx;
+  idx = blockIdx.x * blockDim.x + threadIdx.x;
 
   __shared__ double sum_theta_cos;
   __shared__ double sum_theta_sin;
   __shared__ double s_R;
   __shared__ double s_Theta;
+
+  /* shared はスレッド間でメモリを共有してしまう */
+
   if (mt_flag) {
-    omega[j] *= time_delta;
+    omega[idx] *= time_delta;
   } else {
     for (int j = 0; j < n; j++) {
       omega[j] *= time_delta;
     }
   }
-
   __syncthreads();
+
   for (int i = 0; i < loop_count; i++) {
     // calc center o fmass
     if (mt_flag) {
-      theta_cos[j] = cos(theta[j]);
-      theta_sin[j] = sin(theta[j]);
+      theta_cos[idx] = cos(theta[idx]);
+      theta_sin[idx] = sin(theta[idx]);
+      printf("step: %d,thread: %d, theta[%d]: %f\n", i, idx, idx, theta[idx]);
+      //__syncthreads();
     } else {
-      for (j = 0; j < n; j++) {
+      for (int j = 0; j < n; j++) {
         theta_cos[j] = cos(theta[j]);
         theta_sin[j] = sin(theta[j]);
+
+        // printf("thread: %d, theta[%d]: %f\n",idx,j, theta[j]);
       }
     }
-    // printf("step: %d, theta[%d]: %f\n", i, j, theta[j]);
     __syncthreads();
 
     sum_theta_cos = 0.0;
     sum_theta_sin = 0.0;
+    __syncthreads();
     for (int s = 0; s < n; s++) {
       sum_theta_cos += theta_cos[s];
       sum_theta_sin += theta_sin[s];
+      // __syncthreads();
+      // printf("thread: %d, theta_cos[%d]: %f\n",idx,s, theta_cos[s]);
     }
+    // printf("sum_theta_cos: %f\n",sum_theta_cos);
+    __syncthreads();
     com_x[i] = sum_theta_cos / n;
     com_y[i] = sum_theta_sin / n;
     __syncthreads();
@@ -53,11 +64,23 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
     s_Theta = atan2(com_y[i], com_x[i]);
     __syncthreads();
 
+    /*
+    char format[200] = "step: %d, thread: %d, mt: %d, theta: %f, omeag: %f,
+    com_x: %f, com_y: %f, sum_theta_cos: %f, sum_theta_sin: %f\n"; if (mt_flag)
+    { printf(format, i, idx, mt_flag, theta[idx], omega[idx], com_x[i],
+    com_y[i], sum_theta_cos,sum_theta_sin); } else { for (int j = 0; j < n; j++)
+    { printf(format, i, j, mt_flag, theta[j], omega[j], com_x[i], com_y[i],
+    sum_theta_cos, sum_theta_sin);
+      }
+    }
+    */
+
     // calc next theta
     if (mt_flag) {
-      theta[j] += omega[j] + k * (s_R)*sin(s_Theta - theta[j]) * time_delta;
+      theta[idx] +=
+          omega[idx] + k * (s_R)*sin(s_Theta - theta[idx]) * time_delta;
     } else {
-      for (j = 0; j < n; j++) {
+      for (int j = 0; j < n; j++) {
         theta[j] += omega[j] + k * (s_R)*sin(s_Theta - theta[j]) * time_delta;
       }
     }
@@ -134,9 +157,15 @@ void kuramoto_model_simulator_cu(const int n, const double k,
   dim3 block(blocksize, 1, 1);
   dim3 grid(n / block.x, 1, 1);
 
-  simulation_cu<<<grid, block>>>(n, k, d_omega, d_theta, loop_count, time_delta,
-                                 verbose, d_com_x, d_com_y, d_theta_dt, d_R,
-                                 d_Theta, d_theta_cos, d_theta_sin, mt_flag);
+  if (mt_flag) {
+    simulation_cu<<<grid, block>>>(
+        n, k, d_omega, d_theta, loop_count, time_delta, verbose, d_com_x,
+        d_com_y, d_theta_dt, d_R, d_Theta, d_theta_cos, d_theta_sin, mt_flag);
+  } else {
+    simulation_cu<<<1, 1>>>(n, k, d_omega, d_theta, loop_count, time_delta,
+                            verbose, d_com_x, d_com_y, d_theta_dt, d_R, d_Theta,
+                            d_theta_cos, d_theta_sin, mt_flag);
+  }
 
   error = cudaGetLastError();
   if (error != 0) {
@@ -222,7 +251,7 @@ int main(int argc, char const *argv[]) {
   const int n = 2 * 4;
   const double k = 4;
   const double time_delta = 0.01;
-  const int loop_count = 1000;
+  const int loop_count = 3;
   const double mu = 1.0;
   const double sigma = 1.0;
   unsigned int seed = (unsigned int)time(NULL);
