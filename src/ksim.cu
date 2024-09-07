@@ -12,12 +12,10 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
   int idx;
   idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-  __shared__ double sum_theta_cos;
-  __shared__ double sum_theta_sin;
-  __shared__ double s_R;
-  __shared__ double s_Theta;
-
-  /* shared はスレッド間でメモリを共有してしまう */
+  double sum_theta_cos;
+  double sum_theta_sin;
+  double s_R;
+  double s_Theta;
 
   if (mt_flag) {
     omega[idx] *= time_delta;
@@ -33,7 +31,9 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
     if (mt_flag) {
       theta_cos[idx] = cos(theta[idx]);
       theta_sin[idx] = sin(theta[idx]);
-      printf("step: %d,thread: %d, theta[%d]: %f\n", i, idx, idx, theta[idx]);
+      // これがないとうまくいかない
+      //  printf("step: %d,thread: %d, theta[%d]: %f\n", i, idx, idx,
+      //  theta[idx]);
       //__syncthreads();
     } else {
       for (int j = 0; j < n; j++) {
@@ -90,8 +90,10 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
 }
 void printResultSummary(int tail_count, int loop_count, double *com_x,
                         double *com_y) {
+  int start_index;
+  start_index = min(tail_count, loop_count);
   printf("==== output\n");
-  for (int i = loop_count - tail_count; i < loop_count; i++) {
+  for (int i = loop_count - start_index; i < loop_count; i++) {
     double R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
     double Theta = atan2(com_y[i], com_x[i]);
     printf("R: %f, Theta: %f, com_x: %f, com_y: %f\n", R, Theta, com_x[i],
@@ -153,7 +155,7 @@ void kuramoto_model_simulator_cu(const int n, const double k,
   cudaMemcpy(d_theta, theta, sizeof(double) * n, cudaMemcpyHostToDevice);
 
   // run simulation
-  int blocksize = 4;
+  int blocksize = 512;
   dim3 block(blocksize, 1, 1);
   dim3 grid(n / block.x, 1, 1);
 
@@ -248,15 +250,16 @@ void kuramoto_model_simulator_c(const int n, const double k,
 int main(int argc, char const *argv[]) {
 
   // simulation condition
-  const int n = 2 * 4;
+  const int n = 256 * 512;
   const double k = 4;
   const double time_delta = 0.01;
-  const int loop_count = 3;
+  const int loop_count = 5;
   const double mu = 1.0;
   const double sigma = 1.0;
   unsigned int seed = (unsigned int)time(NULL);
   int verbose = 1;
   int mt_flag = 0;
+  int display_count = 10;
 
   // simulated data
   double *omega;
@@ -269,24 +272,28 @@ int main(int argc, char const *argv[]) {
   com_x = (double *)calloc(loop_count, sizeof(double));
   com_y = (double *)calloc(loop_count, sizeof(double));
 
+  // cpu only
   kuramoto_model_simulator_c(n, k, time_delta, loop_count, mu, sigma, seed,
                              omega, theta, com_x, com_y, verbose, mt_flag);
 
   if (verbose > 0) {
-    printResultSummary(5, loop_count, com_x, com_y);
+    printResultSummary(display_count, loop_count, com_x, com_y);
   }
 
+  // single thread
   mt_flag = 0;
   kuramoto_model_simulator_cu(n, k, time_delta, loop_count, mu, sigma, seed,
                               omega, theta, com_x, com_y, verbose, mt_flag);
   if (verbose > 0) {
-    printResultSummary(5, loop_count, com_x, com_y);
+    printResultSummary(display_count, loop_count, com_x, com_y);
   }
+
+  // multi thread
   mt_flag = 1;
   kuramoto_model_simulator_cu(n, k, time_delta, loop_count, mu, sigma, seed,
                               omega, theta, com_x, com_y, verbose, mt_flag);
   if (verbose > 0) {
-    printResultSummary(5, loop_count, com_x, com_y);
+    printResultSummary(display_count, loop_count, com_x, com_y);
   }
 
   return 0;
