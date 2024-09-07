@@ -3,71 +3,32 @@
 #include <stdlib.h>
 #include <time.h>
 
-__global__ void calcCenterOfMass(int n, double *theta, double *com_x,
-                                 double *com_y, double *R, double *Theta) {
-  for (int j = 0; j < n; j++) {
-    *com_x += cos(theta[j]);
-    *com_y += sin(theta[j]);
-  }
-  *com_x /= n;
-  *com_y /= n;
-  *R = sqrt(pow(*com_x, 2) + pow(*com_y, 2));
-  *Theta = atan2(*com_y, *com_x);
-}
+__global__ void simulation(int n, double k, double *omega, double *theta,
+                           int loop_count, double time_delta, double *com_x,
+                           double *com_y, double *theta_dt, double *R,
+                           double *Theta,
 
-__global__ void calcThetaDt(int n, double *omega, double *theta, double k,
-                            double *R, double *Theta, double *theta_dt) {
-  for (int j = 0; j < n; j++) {
-    theta_dt[j] = omega[j] + k * (*R) * sin(*Theta - theta[j]);
-  }
-}
-
-__global__ void calcNextTheta(int n, double *theta, double *theta_dt,
-                              double time_delta) {
-  for (int j = 0; j < n; j++) {
-    theta[j] += theta_dt[j] * time_delta;
-  }
-}
-
-void simulation(int n, double k, double *omega, double *theta, int loop_count,
-                double time_delta, double *com_x, double *com_y,
-                double *theta_dt, int verbose) {
-
-  double *d_R;
-  double *d_Theta;
-  cudaError_t error;
-
-  cudaMalloc((void **)&d_R, sizeof(double) * 1);
-  cudaMalloc((void **)&d_Theta, sizeof(double) * 1);
+                           int verbose) {
 
   for (int i = 0; i < loop_count; i++) {
-    printf("step: %d\n", i);
-
     // calc center o fmass
-    calcCenterOfMass<<<1, 1>>>(n, theta, &com_x[i], &com_y[i], d_R, d_Theta);
-    // cudaDeviceSynchronize();
-    error = cudaGetLastError();
-    if (error != 0) {
-      printf("error: %d : %s\n", error, cudaGetErrorString(error));
-      return;
+    for (int j = 0; j < n; j++) {
+      com_x[i] += cos(theta[j]);
+      com_y[i] += sin(theta[j]);
     }
+    com_x[i] /= n;
+    com_y[i] /= n;
+    *R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
+    *Theta = atan2(com_y[i], com_x[i]);
 
     // calc theta_dt
-    calcThetaDt<<<1, 1>>>(n, omega, theta, k, d_R, d_Theta, theta_dt);
-    // cudaDeviceSynchronize();
-    error = cudaGetLastError();
-    if (error != 0) {
-      printf("error: %d : %s\n", error, cudaGetErrorString(error));
-      return;
+    for (int j = 0; j < n; j++) {
+      theta_dt[j] = omega[j] + k * (*R) * sin(*Theta - theta[j]);
     }
 
     // calc next theta
-    calcNextTheta<<<1, 1>>>(n, theta, theta_dt, time_delta);
-    // cudaDeviceSynchronize();
-    error = cudaGetLastError();
-    if (error != 0) {
-      printf("error: %d : %s\n", error, cudaGetErrorString(error));
-      return;
+    for (int j = 0; j < n; j++) {
+      theta[j] += theta_dt[j] * time_delta;
     }
   }
 }
@@ -101,6 +62,9 @@ void kuramoto_model_simulator(const int n, const double k,
   double *d_com_x;
   double *d_com_y;
   double *d_theta_dt;
+  double *d_R;
+  double *d_Theta;
+  cudaError_t error;
 
   cudaMalloc((void **)&d_omega, sizeof(double) * n);
   cudaMalloc((void **)&d_theta, sizeof(double) * n);
@@ -109,6 +73,8 @@ void kuramoto_model_simulator(const int n, const double k,
   cudaMalloc((void **)&d_com_y, sizeof(double) * loop_count);
   cudaMemset(d_com_x, 0.0, sizeof(double) * loop_count);
   cudaMemset(d_com_y, 0.0, sizeof(double) * loop_count);
+  cudaMalloc((void **)&d_R, sizeof(double) * 1);
+  cudaMalloc((void **)&d_Theta, sizeof(double) * 1);
 
   // init variables
   init_variables(n, mu, sigma, seed, omega, theta);
@@ -117,9 +83,14 @@ void kuramoto_model_simulator(const int n, const double k,
   cudaMemcpy(d_theta, theta, sizeof(double) * n, cudaMemcpyHostToDevice);
 
   // run simulation
-  simulation(n, k, d_omega, d_theta, loop_count, time_delta, d_com_x, d_com_y,
-             d_theta_dt, verbose);
+  simulation<<<1, 1>>>(n, k, d_omega, d_theta, loop_count, time_delta, d_com_x,
+                       d_com_y, d_theta_dt, d_R, d_Theta, verbose);
 
+  error = cudaGetLastError();
+  if (error != 0) {
+    printf("error: %d : %s\n", error, cudaGetErrorString(error));
+    return;
+  }
   cudaMemcpy(com_x, d_com_x, sizeof(double) * loop_count,
              cudaMemcpyDeviceToHost);
   cudaMemcpy(com_y, d_com_y, sizeof(double) * loop_count,
