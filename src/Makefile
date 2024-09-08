@@ -19,6 +19,9 @@ demo_cu: ksim_cu
 ksim_cu: ksim.cu
 	nvcc ksim.cu -o ksim_cu -diag-suppress '549'
 
+ksim_cu_o3: ksim.cu
+	nvcc ksim.cu -o ksim_cu_o3 -diag-suppress '549' --compiler-options -O3
+
 ksim_cu.so: ksim.cu
 	nvcc ksim.cu -o ksim_cu.so -diag-suppress '549' --compiler-options '-fPIC' -shared
 
