@@ -8,24 +8,52 @@ let flag_paused = false;
 
 /* define constant values */
 const DEBUG_FLAG = false;
-const MAIN_CANVAS_WIDTH = 500;
-const MAIN_CANVAS_HEIGHT = 500;
+const MAIN_CANVAS_WIDTH = 800;
+const MAIN_CANVAS_HEIGHT = 800;
 const DELTA_TIME_SEC = 0.02;
 const INTERVAL_MSEC = 20;
 const MAX_SIMULATE_STEPS = 0;
 const LAST_HISTORY_COUNT = 1000;
 const CENTER_OF_MASS_RADIUS = 5;
 const ELEMENT_RADIUS = 5;
-const BACKGROUND_COLOR = '#222222FF';
-const HEARTBEAT_COLOR = '#FFAAAAAA';
-const HISTORY_COLOR = '#FFAAAA0F';
-const HISTORY_LINE_COLOR = '#FFAAAAAA';
-const PHASE_COLOR = '#AAAAFF77';
-const ORDER_BACKGROUND_COLOR = '#333333';
-const ORDER_R_COLOR = '#FFAAAAAA';
-const ORDER_ERROR_SCORE_COLOR = '#99FF99FF';
-const CENTER_OF_MASS_COLOR = '#FF9999AA';
-const HISTORY_CHAR_BORDER_COLOR = '#555555FF';
+const HISTORY_CANVAS_WIDTH = MAIN_CANVAS_WIDTH;
+const HISTORY_CANVAS_HEIGHT = 200;
+
+/* define colors */
+/*
+const CC1 = '#F2F2F2';
+const CC2 = '#8C8474';
+const CC3 = '#59554C';
+const CC4 = '#BFB7A8';
+const CC5 = '#0D0D0D';
+
+const CC1 = '#A6A6A6';
+const CC2 = '#595959';
+const CC3 = '#404040';
+const CC4 = '#262626';
+const CC5 = '#0D0D0D';
+*/
+const CC1 = '#909090';
+const CC2 = '#BF532C';
+const CC3 = '#D98555';
+const CC4 = '#F2BB77';
+const CC5 = '#101010';
+
+const TEXT_COLOR = CC1;
+const HISTORY_CHAR_BORDER_COLOR = CC1;
+
+const PHASE_COLOR = CC2;
+const ORDER_ERROR_SCORE_COLOR = CC2;
+
+const HEARTBEAT_COLOR = CC3;
+const HISTORY_LINE_COLOR = CC3;
+const ORDER_BACKGROUND_COLOR = CC3 + "60";
+const ORDER_R_COLOR = CC3;
+
+const CENTER_OF_MASS_COLOR = CC4;
+const HISTORY_TAIL_COLOR = CC4 + "30";
+
+const BACKGROUND_COLOR = CC5;
 
 
 /************ callback section ************/
@@ -57,6 +85,9 @@ function toggle_pause() {
 
 /* init canvas */
 function init_canvas(parent, width, height) {
+  init_main_canvas(parent, width, height);
+}
+function init_main_canvas(parent, width, height) {
 
   const main_canvas = document.createElement('canvas');
   main_canvas.id = 'main_canvas';
@@ -67,11 +98,12 @@ function init_canvas(parent, width, height) {
     toggle_pause();
   });
   parent.appendChild(main_canvas);
-
+}
+function init_history_canvas(parent, width, height) {
   const history_canvas = document.createElement('canvas');
   history_canvas.id = 'history_canvas';
   history_canvas.width = width;
-  history_canvas.height = height / 2;
+  history_canvas.height = height;
   history_canvas.innerText = 'draw history with javascript';
   parent.appendChild(history_canvas);
 }
@@ -150,25 +182,26 @@ function addResetButton(id_value, parent) {
 
 /* init widgets */
 function init_widgets(parent) {
-  const control_panel = document.createElement('div');
-  control_panel.id = 'widget_panel';
+  const widget_panel = document.createElement('div');
+  widget_panel.id = 'widget_panel';
 
   const omega_mu = 1;
   const omega_sigma = 1;
   const ktp = calcKuramotoTransitionPoint(omega_mu, omega_sigma, 0);
-
-  addSlider('n', 30, 2, 60, 1.0, control_panel);
-  addSlider('k', ktp, 0, 10, 0.01, control_panel);
-  addSlider('omega_mu', omega_mu, 0, 10, 0.1, control_panel);
-  addSlider('omega_sigma', omega_sigma, 0, 5, 0.01, control_panel);
-  addResetButton('restart', control_panel);
+  const ktp_ratio = 0.7
 
   const p_ktp = document.createElement('p');
   p_ktp.id = 'kuramoto_transition_point';
   p_ktp.appendChild(document.createTextNode(''))
-  control_panel.appendChild(p_ktp);
+  widget_panel.appendChild(p_ktp);
 
-  parent.appendChild(control_panel);
+  addSlider('n', 30, 2, 60, 1.0, widget_panel);
+  addSlider('k', ktp * ktp_ratio, 0, 10, 0.01, widget_panel);
+  addSlider('omega_mu', omega_mu, 0, 5, 0.1, widget_panel);
+  addSlider('omega_sigma', omega_sigma, 0, 5, 0.01, widget_panel);
+  addResetButton('restart', widget_panel);
+
+  parent.appendChild(widget_panel);
 
 }
 
@@ -291,7 +324,6 @@ function updateMainCanvas(theta, centerOfMass, history) {
   // draw oscillators
   drawHeartbeat(ctx, theta, center_x, center_y, Math.min(width, height) / 3);
   drawPhase(ctx, theta, center_x, center_y, osc_radius, element_radius);
-  drawCenterOfMass(ctx, centerOfMass, center_x, center_y, osc_radius, com_radius);
 
   // draw synchronous gauge
   const margin_bottom = 20;
@@ -303,7 +335,7 @@ function updateMainCanvas(theta, centerOfMass, history) {
              area_height];
   drawOrder(ctx, pos, centerOfMass);
 
-  ctx.fillStyle = HISTORY_COLOR;
+  ctx.fillStyle = HISTORY_TAIL_COLOR;
 
   for (let i = 0;i < history.length; i++) {
     const {x,y} = history[i];
@@ -314,6 +346,7 @@ function updateMainCanvas(theta, centerOfMass, history) {
     ctx.closePath();
     ctx.fill();
   }
+  drawCenterOfMass(ctx, centerOfMass, center_x, center_y, osc_radius, com_radius);
 }
 
 /* update history canvas */
@@ -332,7 +365,7 @@ function updateHistoryCanvas(history) {
   const center_x = width / 2;
   const center_y = height/ 2;
   const r = 0.4 * Math.min(width, height);
-  const margin = 50;
+  const margin = 20;
 
   // get context
   const ctx = history_canvas.getContext('2d');
@@ -562,11 +595,19 @@ function simulate() {
 
 function KuramotoModelSimulator(main_div) {
 
+  // define page color
+  document.body.style.backgroundColor  = BACKGROUND_COLOR;
+  document.body.style.color = TEXT_COLOR;
+
   // append canvas
   init_canvas(main_div, MAIN_CANVAS_WIDTH, MAIN_CANVAS_HEIGHT);
 
   // append widgets for parameter control
-  init_widgets(main_div);
+  const control = document.createElement('div');
+  control.id = 'control_panel';
+  init_history_canvas(control, HISTORY_CANVAS_WIDTH, HISTORY_CANVAS_HEIGHT);
+  init_widgets(control);
+  main_div.appendChild(control);
 
   // append console
   if (DEBUG_FLAG == true) {

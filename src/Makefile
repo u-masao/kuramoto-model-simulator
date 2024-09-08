@@ -1,5 +1,10 @@
 all: demo
 
+## optimize
+optimize:
+	mkdir ../data -p
+	poetry run python optimize.py ../data/summary.csv --time=180
+
 ## cpu
 demo: ksim ksim.so ksim_c.py ksim_torch.py
 	./ksim
