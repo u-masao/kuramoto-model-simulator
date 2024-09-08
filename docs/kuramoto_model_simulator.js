@@ -20,24 +20,40 @@ const HISTORY_CANVAS_WIDTH = MAIN_CANVAS_WIDTH;
 const HISTORY_CANVAS_HEIGHT = 200;
 
 /* define colors */
+/*
 const CC1 = '#F2F2F2';
 const CC2 = '#8C8474';
 const CC3 = '#59554C';
 const CC4 = '#BFB7A8';
 const CC5 = '#0D0D0D';
 
-const CC1 = '8F0224';
-const BACKGROUND_COLOR = '#421318';
-const HEARTBEAT_COLOR = '#F59CA6';
-const HISTORY_COLOR = HEARTBEAT_COLOR + "30";
-const HISTORY_LINE_COLOR = HEARTBEAT_COLOR;
-const PHASE_COLOR = CC1 + "90";
-const ORDER_BACKGROUND_COLOR = '#333333';
-const ORDER_R_COLOR = HEARTBEAT_COLOR + "90";
-const ORDER_ERROR_SCORE_COLOR = CC1;
-const CENTER_OF_MASS_COLOR = HEARTBEAT_COLOR;
-const HISTORY_CHAR_BORDER_COLOR = '#DFDBDB';
-const TEXT_COLOR = '#DFDBDB';
+const CC1 = '#A6A6A6';
+const CC2 = '#595959';
+const CC3 = '#404040';
+const CC4 = '#262626';
+const CC5 = '#0D0D0D';
+*/
+const CC1 = '#909090';
+const CC2 = '#BF532C';
+const CC3 = '#D98555';
+const CC4 = '#F2BB77';
+const CC5 = '#101010';
+
+const TEXT_COLOR = CC1;
+const HISTORY_CHAR_BORDER_COLOR = CC1;
+
+const PHASE_COLOR = CC2;
+const ORDER_ERROR_SCORE_COLOR = CC2;
+
+const HEARTBEAT_COLOR = CC3;
+const HISTORY_LINE_COLOR = CC3;
+const ORDER_BACKGROUND_COLOR = CC3 + "60";
+const ORDER_R_COLOR = CC3;
+
+const CENTER_OF_MASS_COLOR = CC4;
+const HISTORY_TAIL_COLOR = CC4 + "30";
+
+const BACKGROUND_COLOR = CC5;
 
 
 /************ callback section ************/
@@ -308,7 +324,6 @@ function updateMainCanvas(theta, centerOfMass, history) {
   // draw oscillators
   drawHeartbeat(ctx, theta, center_x, center_y, Math.min(width, height) / 3);
   drawPhase(ctx, theta, center_x, center_y, osc_radius, element_radius);
-  drawCenterOfMass(ctx, centerOfMass, center_x, center_y, osc_radius, com_radius);
 
   // draw synchronous gauge
   const margin_bottom = 20;
@@ -320,7 +335,7 @@ function updateMainCanvas(theta, centerOfMass, history) {
              area_height];
   drawOrder(ctx, pos, centerOfMass);
 
-  ctx.fillStyle = HISTORY_COLOR;
+  ctx.fillStyle = HISTORY_TAIL_COLOR;
 
   for (let i = 0;i < history.length; i++) {
     const {x,y} = history[i];
@@ -331,6 +346,7 @@ function updateMainCanvas(theta, centerOfMass, history) {
     ctx.closePath();
     ctx.fill();
   }
+  drawCenterOfMass(ctx, centerOfMass, center_x, center_y, osc_radius, com_radius);
 }
 
 /* update history canvas */
