@@ -24,7 +24,6 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
       omega[j] *= time_delta;
     }
   }
-  __syncthreads();
 
   for (int i = 0; i < loop_count; i++) {
     // calc center o fmass
@@ -32,37 +31,29 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
       theta_cos[idx] = cos(theta[idx]);
       theta_sin[idx] = sin(theta[idx]);
       // これがないとうまくいかない
-      //  printf("step: %d,thread: %d, theta[%d]: %f\n", i, idx, idx,
-      //  theta[idx]);
-      //__syncthreads();
+      printf("step: %d, thread: %d, theta[%d]: %f\n", i, idx, idx, theta[idx]);
     } else {
       for (int j = 0; j < n; j++) {
         theta_cos[j] = cos(theta[j]);
         theta_sin[j] = sin(theta[j]);
-
-        // printf("thread: %d, theta[%d]: %f\n",idx,j, theta[j]);
       }
     }
-    __syncthreads();
 
     sum_theta_cos = 0.0;
     sum_theta_sin = 0.0;
-    __syncthreads();
     for (int s = 0; s < n; s++) {
       sum_theta_cos += theta_cos[s];
       sum_theta_sin += theta_sin[s];
-      // __syncthreads();
-      // printf("thread: %d, theta_cos[%d]: %f\n",idx,s, theta_cos[s]);
     }
-    // printf("sum_theta_cos: %f\n",sum_theta_cos);
-    __syncthreads();
+    if (mt_flag) {
+      printf("step: %d, thread: %d, sum_theta_cos: %f\n", i, idx,
+             sum_theta_cos);
+    }
     com_x[i] = sum_theta_cos / n;
     com_y[i] = sum_theta_sin / n;
-    __syncthreads();
 
     s_R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
     s_Theta = atan2(com_y[i], com_x[i]);
-    __syncthreads();
 
     /*
     char format[200] = "step: %d, thread: %d, mt: %d, theta: %f, omeag: %f,
@@ -86,6 +77,7 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
     }
 
     __syncthreads();
+    __threadfence();
   }
 }
 void printResultSummary(int tail_count, int loop_count, double *com_x,
@@ -123,7 +115,8 @@ void kuramoto_model_simulator_cu(const int n, const double k,
                                  const double mu, const double sigma,
                                  const unsigned int seed, double *omega,
                                  double *theta, double *com_x, double *com_y,
-                                 int verbose, int mt_flag) {
+                                 int verbose, int mt_flag,
+                                 const int blocksize) {
 
   double *d_omega;
   double *d_theta;
@@ -155,7 +148,6 @@ void kuramoto_model_simulator_cu(const int n, const double k,
   cudaMemcpy(d_theta, theta, sizeof(double) * n, cudaMemcpyHostToDevice);
 
   // run simulation
-  int blocksize = 512;
   dim3 block(blocksize, 1, 1);
   dim3 grid(n / block.x, 1, 1);
 
@@ -249,18 +241,20 @@ void kuramoto_model_simulator_c(const int n, const double k,
 
 int main(int argc, char const *argv[]) {
 
+  const int blocksize = 4;
+
   // simulation condition
-  const int n = 256 * 512;
+  const int n = 2 * blocksize;
   const double k = 4;
   const double time_delta = 0.01;
-  const int loop_count = 5;
+  const int loop_count = 10;
   const double mu = 1.0;
   const double sigma = 1.0;
+  const int verbose = 1;
+  const int display_count = 10;
   unsigned int seed = (unsigned int)time(NULL);
-  int verbose = 1;
-  int mt_flag = 0;
-  int display_count = 10;
 
+  int mt_flag = 0;
   // simulated data
   double *omega;
   double *theta;
@@ -283,7 +277,8 @@ int main(int argc, char const *argv[]) {
   // single thread
   mt_flag = 0;
   kuramoto_model_simulator_cu(n, k, time_delta, loop_count, mu, sigma, seed,
-                              omega, theta, com_x, com_y, verbose, mt_flag);
+                              omega, theta, com_x, com_y, verbose, mt_flag,
+                              blocksize);
   if (verbose > 0) {
     printResultSummary(display_count, loop_count, com_x, com_y);
   }
@@ -291,7 +286,8 @@ int main(int argc, char const *argv[]) {
   // multi thread
   mt_flag = 1;
   kuramoto_model_simulator_cu(n, k, time_delta, loop_count, mu, sigma, seed,
-                              omega, theta, com_x, com_y, verbose, mt_flag);
+                              omega, theta, com_x, com_y, verbose, mt_flag,
+                              blocksize);
   if (verbose > 0) {
     printResultSummary(display_count, loop_count, com_x, com_y);
   }
