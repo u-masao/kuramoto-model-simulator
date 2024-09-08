@@ -13,10 +13,7 @@ make server
 ```
 
 
-## メルセンヌ・ツイスタ
+## 探索結果
 
-http://www.math.sci.hiroshima-u.ac.jp/m-mat/MT/SFMT/index-jp.html
-
-http://www.math.sci.hiroshima-u.ac.jp/m-mat/MT/SFMT/SFMT-src-1.5.1.tar.gz
-
+![center of mass history](data/figures/best_params.png)
 
