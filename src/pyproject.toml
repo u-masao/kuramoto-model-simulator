@@ -11,6 +11,8 @@ python = "^3.10"
 click = "^8.1.7"
 pandas = "^2.2.2"
 torch = "^2.4.1"
+optuna = "^4.0.0"
+matplotlib = "^3.9.2"
 
 
 [tool.poetry.group.dev.dependencies]
