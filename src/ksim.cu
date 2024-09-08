@@ -48,8 +48,8 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
       }
     }
 
-    __syncthreads();
-    __threadfence();
+    //__syncthreads();
+    //__threadfence();
 
     sum_theta_cos = 0.0;
     sum_theta_sin = 0.0;
@@ -79,8 +79,8 @@ printf("step: %d, thread: %d, sum_theta_cos: %f\n", i, idx,
       }
     }
 
-    __syncthreads();
-    __threadfence();
+    //__syncthreads();
+    //__threadfence();
   }
 }
 void printResultSummary(int tail_count, int loop_count, double *com_x,
@@ -188,43 +188,35 @@ void printParams(int n, double *omega, double *theta) {
   }
 }
 
-void calcCenterOfMass(double *theta, int n, double *com_x, double *com_y) {
-  *com_x = 0.0;
-  *com_y = 0.0;
-  for (int i = 0; i < n; i++) {
-    *com_x += cos(theta[i]);
-    *com_y += sin(theta[i]);
-  }
-  *com_x /= n;
-  *com_y /= n;
-}
-
-void kuramoto_formula_fast(int n, double k, double *omega, double *theta,
-                           double R, double Theta, double *theta_dt) {
-  for (int i = 0; i < n; i++) {
-    theta_dt[i] = omega[i] + k * R * sin(Theta - theta[i]);
-  }
-}
-
 void simulation_c(int n, double k, double *omega, double *theta, int loop_count,
                   double time_delta, double *com_x, double *com_y,
                   int verbose) {
   double R;
   double Theta;
-  double *theta_dt;
-  theta_dt = (double *)malloc(n * sizeof(double));
+  double *omega_dt;
+  omega_dt = (double *)malloc(n * sizeof(double));
+  memset(com_x, 0, loop_count * sizeof(double));
+  memset(com_y, 0, loop_count * sizeof(double));
+
+  for (int j = 0; j < n; j++) {
+    omega_dt[j] = omega[j] * time_delta;
+  }
 
   for (int i = 0; i < loop_count; i++) {
-    calcCenterOfMass(theta, n, &com_x[i], &com_y[i]);
+    for (int j = 0; j < n; j++) {
+      com_x[i] += cos(theta[j]);
+      com_y[i] += sin(theta[j]);
+    }
+    com_x[i] /= n;
+    com_y[i] /= n;
     R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
     Theta = atan2(com_y[i], com_x[i]);
-    kuramoto_formula_fast(n, k, omega, theta, R, Theta, theta_dt);
     for (int j = 0; j < n; j++) {
-      theta[j] += theta_dt[j] * time_delta;
+      theta[j] += omega_dt[j] + k * R * sin(Theta - theta[j]) * time_delta;
     }
   }
 
-  free(theta_dt);
+  free(omega_dt);
 }
 
 void kuramoto_model_simulator_c(const int n, const double k,
@@ -262,7 +254,7 @@ int main(int argc, char const *argv[]) {
   const int n = gridsize * blocksize;
   const double k = 4;
   const double time_delta = 0.01;
-  const int loop_count = 10;
+  const int loop_count = 100;
   const double mu = 1.0;
   const double sigma = 1.0;
   const int verbose = 1;
@@ -293,6 +285,8 @@ int main(int argc, char const *argv[]) {
     printResultSummary(display_count, loop_count, com_x, com_y);
     printElapsedTime(&start_time, &end_time);
   }
+
+  return 0;
 
   // single thread
   mt_flag = 0;
