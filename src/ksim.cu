@@ -10,7 +10,18 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
                               double *theta_sin, int mt_flag) {
 
   int idx;
-  idx = blockIdx.x * blockDim.x + threadIdx.x;
+  idx = (blockIdx.x * blockDim.x + threadIdx.x) * blockDim.y + threadIdx.y;
+  /*
+  printf("idx: %d\n", idx);
+  printf("bDim.x: %d, bDim.y: %d, bDim.z: %d\n", blockDim.x, blockDim.y,
+         blockDim.z);
+  printf("bIdx.x: %d, bIdx.y: %d, bIdx.z: %d\n", blockIdx.x, blockIdx.y,
+         blockIdx.z);
+  printf("tIdx.x: %d, tIdx.y: %d, tIdx.z: %d\n", threadIdx.x, threadIdx.y,
+         threadIdx.z);
+    */
+  if (idx >= n)
+    return;
 
   double sum_theta_cos;
   double sum_theta_sin;
@@ -30,14 +41,15 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
     if (mt_flag) {
       theta_cos[idx] = cos(theta[idx]);
       theta_sin[idx] = sin(theta[idx]);
-      // これがないとうまくいかない
-      printf("step: %d, thread: %d, theta[%d]: %f\n", i, idx, idx, theta[idx]);
     } else {
       for (int j = 0; j < n; j++) {
         theta_cos[j] = cos(theta[j]);
         theta_sin[j] = sin(theta[j]);
       }
     }
+
+    __syncthreads();
+    __threadfence();
 
     sum_theta_cos = 0.0;
     sum_theta_sin = 0.0;
@@ -46,25 +58,16 @@ __global__ void simulation_cu(int n, double k, double *omega, double *theta,
       sum_theta_sin += theta_sin[s];
     }
     if (mt_flag) {
-      printf("step: %d, thread: %d, sum_theta_cos: %f\n", i, idx,
-             sum_theta_cos);
+      /*
+printf("step: %d, thread: %d, sum_theta_cos: %f\n", i, idx,
+       sum_theta_cos);
+       */
     }
     com_x[i] = sum_theta_cos / n;
     com_y[i] = sum_theta_sin / n;
 
     s_R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
     s_Theta = atan2(com_y[i], com_x[i]);
-
-    /*
-    char format[200] = "step: %d, thread: %d, mt: %d, theta: %f, omeag: %f,
-    com_x: %f, com_y: %f, sum_theta_cos: %f, sum_theta_sin: %f\n"; if (mt_flag)
-    { printf(format, i, idx, mt_flag, theta[idx], omega[idx], com_x[i],
-    com_y[i], sum_theta_cos,sum_theta_sin); } else { for (int j = 0; j < n; j++)
-    { printf(format, i, j, mt_flag, theta[j], omega[j], com_x[i], com_y[i],
-    sum_theta_cos, sum_theta_sin);
-      }
-    }
-    */
 
     // calc next theta
     if (mt_flag) {
@@ -149,7 +152,7 @@ void kuramoto_model_simulator_cu(const int n, const double k,
 
   // run simulation
   dim3 block(blocksize, 1, 1);
-  dim3 grid(n / block.x, 1, 1);
+  dim3 grid(n / blocksize, 1, 1);
 
   if (mt_flag) {
     simulation_cu<<<grid, block>>>(
@@ -239,12 +242,24 @@ void kuramoto_model_simulator_c(const int n, const double k,
                verbose);
 }
 
+void printElapsedTime(
+
+    struct timespec *start_time, struct timespec *end_time) {
+  unsigned int sec;
+  int nsec;
+  double d_sec;
+
+  sec = end_time->tv_sec - start_time->tv_sec;
+  nsec = end_time->tv_nsec - start_time->tv_nsec;
+  d_sec = (double)sec + (double)nsec / (1000 * 1000 * 1000);
+  printf("elapsed time: %f\n", d_sec);
+}
 int main(int argc, char const *argv[]) {
 
-  const int blocksize = 4;
-
   // simulation condition
-  const int n = 2 * blocksize;
+  const int blocksize = 1024;
+  const int gridsize = 1024;
+  const int n = gridsize * blocksize;
   const double k = 4;
   const double time_delta = 0.01;
   const int loop_count = 10;
@@ -253,7 +268,9 @@ int main(int argc, char const *argv[]) {
   const int verbose = 1;
   const int display_count = 10;
   unsigned int seed = (unsigned int)time(NULL);
+  seed = 0;
 
+  struct timespec start_time, end_time;
   int mt_flag = 0;
   // simulated data
   double *omega;
@@ -267,29 +284,39 @@ int main(int argc, char const *argv[]) {
   com_y = (double *)calloc(loop_count, sizeof(double));
 
   // cpu only
+  clock_gettime(CLOCK_REALTIME, &start_time);
   kuramoto_model_simulator_c(n, k, time_delta, loop_count, mu, sigma, seed,
                              omega, theta, com_x, com_y, verbose, mt_flag);
+  clock_gettime(CLOCK_REALTIME, &end_time);
 
   if (verbose > 0) {
     printResultSummary(display_count, loop_count, com_x, com_y);
+    printElapsedTime(&start_time, &end_time);
   }
 
   // single thread
   mt_flag = 0;
+  clock_gettime(CLOCK_REALTIME, &start_time);
   kuramoto_model_simulator_cu(n, k, time_delta, loop_count, mu, sigma, seed,
                               omega, theta, com_x, com_y, verbose, mt_flag,
                               blocksize);
+  clock_gettime(CLOCK_REALTIME, &end_time);
   if (verbose > 0) {
     printResultSummary(display_count, loop_count, com_x, com_y);
+    printElapsedTime(&start_time, &end_time);
   }
 
   // multi thread
   mt_flag = 1;
+  clock_gettime(CLOCK_REALTIME, &start_time);
   kuramoto_model_simulator_cu(n, k, time_delta, loop_count, mu, sigma, seed,
                               omega, theta, com_x, com_y, verbose, mt_flag,
                               blocksize);
+  clock_gettime(CLOCK_REALTIME, &end_time);
+
   if (verbose > 0) {
     printResultSummary(display_count, loop_count, com_x, com_y);
+    printElapsedTime(&start_time, &end_time);
   }
 
   return 0;
