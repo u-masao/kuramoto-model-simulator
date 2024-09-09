@@ -131,17 +131,24 @@ def plot_com(df, output_filepath, plot_alpha: float = 0.03):
     "--ksim_library_path", type=click.Path(exists=True), default="./ksim.so"
 )
 @click.option("--time", type=int, default=120)
+@click.option("--optuna_seed", type=int, default=0)
+@click.option("--seed", type=int, default=0)
 def main(**kwargs):
     n = 30
     time_delta = 0.01
     loop_count = 100 * kwargs["time"]
+    optuna_seed = kwargs["optuna_seed"]
+    seed = kwargs["seed"]
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
-    study = optuna.create_study(direction="minimize")
+    study = optuna.create_study(
+        direction="minimize",
+        sampler=optuna.samplers.TPESampler(seed=optuna_seed),
+    )
     study.optimize(
         objective_wrapper(
-            r_mu=0.7,
-            r_sigma=0.6,
+            r_mu=0.5,
+            r_sigma=0.3,
             loop_count=loop_count,
             n=n,
             time_delta=time_delta,
@@ -151,7 +158,6 @@ def main(**kwargs):
     best_params = study.best_params
     print(f"best params: {best_params}")
     print(f"best score: {study.best_value}")
-    print(f"best trial: {study.best_trial}")
 
     k = best_params["k"]
 
@@ -163,7 +169,7 @@ def main(**kwargs):
         loop_count=loop_count,
         mu=1.0,
         sigma=1.0,
-        seed=0,
+        seed=seed,
         verbose=0,
     )
 
