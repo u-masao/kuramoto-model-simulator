@@ -193,14 +193,8 @@ void simulation_c(int n, double k, double *omega, double *theta, int loop_count,
                   int verbose) {
   double R;
   double Theta;
-  double *omega_dt;
-  omega_dt = (double *)malloc(n * sizeof(double));
   memset(com_x, 0, loop_count * sizeof(double));
   memset(com_y, 0, loop_count * sizeof(double));
-
-  for (int j = 0; j < n; j++) {
-    omega_dt[j] = omega[j] * time_delta;
-  }
 
   for (int i = 0; i < loop_count; i++) {
     for (int j = 0; j < n; j++) {
@@ -212,11 +206,9 @@ void simulation_c(int n, double k, double *omega, double *theta, int loop_count,
     R = sqrt(pow(com_x[i], 2) + pow(com_y[i], 2));
     Theta = atan2(com_y[i], com_x[i]);
     for (int j = 0; j < n; j++) {
-      theta[j] += omega_dt[j] + k * R * sin(Theta - theta[j]) * time_delta;
+      theta[j] += (omega[j] + k * R * sin(Theta - theta[j])) * time_delta;
     }
   }
-
-  free(omega_dt);
 }
 
 void kuramoto_model_simulator_c(const int n, const double k,
