@@ -13,23 +13,39 @@ KSIM_LIB = "./ksim.so"
 
 
 def score_function(
-    r: pd.Series,
-    score_weight_mean: float = 0.01,
-    r_mu: float = 0.0,
-    r_sigma: float = 1.0,
+    com_x: np.array,
+    com_y: np.array,
+    r_mu: float = 0.5,
+    r_sigma: float = 0.3,
+    dr_sigma: float = 0.2,
+    weight_r_mu: float = 1,
+    weight_r_sigma: float = 1,
+    weight_dr_sigma: float = 1,
+    time_delta: float = 0.01,
 ) -> float:
-    '''
+    """
     パラメーター探索用のスコア定義
-    '''
-    return (
-        score_weight_mean * (r.mean() - r_mu) ** 2 + (r.std() - r_sigma) ** 2
-    )
+    """
+    r = np.sqrt(com_x**2 + com_y**2)
+    d_com_x = np.diff(com_x) / time_delta
+    d_com_y = np.diff(com_y) / time_delta
+    d_r = np.sqrt(d_com_x**2 + d_com_y**2)
+
+    score = 1.0
+    score += weight_r_mu * (r.mean() - r_mu) ** 2
+    score += weight_r_sigma * (r.std() - r_sigma) ** 2
+    score += weight_dr_sigma * (d_r.std() - dr_sigma) ** 2
+
+    return score
 
 
 def objective_wrapper(
-    r_mu: float = 0.4,
+    r_mu: float = 0.5,
     r_sigma: float = 0.3,
-    score_weight_mean: float = 0.1,
+    dr_sigma: float = 0.2,
+    weight_r_mu: float = 1.0,
+    weight_r_sigma: float = 1.0,
+    weight_dr_sigma: float = 1.0,
     loop_count: int = 6000,
     time_delta: float = 0.01,
     n: int = 30,
@@ -40,13 +56,14 @@ def objective_wrapper(
     k_min: float = 0.5,
     k_max: float = 10,
 ):
-    '''
+    """
     最適化関数のジェネレーター
-    '''
+    """
+
     def objective(trial):
-        '''
+        """
         探索範囲と最適化関数の定義
-        '''
+        """
 
         # 探索範囲の定義
         k = trial.suggest_float("k", k_min, k_max)
@@ -67,10 +84,16 @@ def objective_wrapper(
         # スコア計算
         com_x = np.array(simulated["com_x"])
         com_y = np.array(simulated["com_y"])
-        r = np.sqrt(com_x**2 + com_y**2)
 
         return score_function(
-            r, score_weight_mean=score_weight_mean, r_mu=r_mu, r_sigma=r_sigma
+            com_x,
+            com_y,
+            r_mu=r_mu,
+            r_sigma=r_sigma,
+            dr_sigma=dr_sigma,
+            weight_r_mu=weight_r_mu,
+            weight_r_sigma=weight_r_sigma,
+            weight_dr_sigma=weight_dr_sigma,
         )
 
     # 関数を返す
@@ -78,9 +101,9 @@ def objective_wrapper(
 
 
 class MatrixPlot:
-    '''
+    """
     軌跡画像を作るクラス
-    '''
+    """
 
     def __init__(
         self,
@@ -110,9 +133,9 @@ class MatrixPlot:
         self.ax = ax.reshape(width, height)
 
     def plot(self, df, x, y, title: str, size: float = 10):
-        '''
+        """
         plot
-        '''
+        """
         if x >= self.width or y >= self.height:
             raise ValueError("x or y too large")
 
@@ -139,21 +162,20 @@ class MatrixPlot:
         ax.set_title(title, color=self.color, alpha=0.3, y=-0.12)
 
     def save(self, output_filepath: str):
-        '''
+        """
         ファイル保存とリソース解放
-        '''
+        """
         self.fig.tight_layout()
         self.fig.savefig(output_filepath, dpi=300)
         plt.clf()
         plt.close()
 
 
-def search(optuna_seed, seed, n, loop_sec):
-    '''
+def search(optuna_seed, seed, n, loop_sec, time_delta=0.01):
+    """
     探索方法の実行
-    '''
-    time_delta = 0.01
-    loop_count = 100 * loop_sec
+    """
+    loop_count = int(loop_sec / time_delta)
 
     # 探索定義
     optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -164,10 +186,10 @@ def search(optuna_seed, seed, n, loop_sec):
 
     # 探索実施
     study.optimize(
-
         objective_wrapper(
             r_mu=0.5,
             r_sigma=0.3,
+            dr_sigma=0.2,
             loop_count=loop_count,
             n=n,
             time_delta=time_delta,
@@ -221,9 +243,9 @@ def search(optuna_seed, seed, n, loop_sec):
 @click.option("--limit", type=int, default=2)
 @click.option("--image_dir", type=str, default="images")
 def main(**kwargs):
-    '''
+    """
     パラメーター探索、シミュレーション、軌跡の保存
-    '''
+    """
 
     # ディレクトリ作成
     save_dir = Path(kwargs["database_filepath"])
@@ -265,11 +287,17 @@ def main(**kwargs):
             continue
 
         # 探索
-        df, best_params = search(optuna_seed, seed, n, kwargs["time"])
+        time_delta = 0.01
+        df, best_params = search(
+            optuna_seed, seed, n, kwargs["time"], time_delta=time_delta
+        )
         r_mean = df["r"].mean()
         r_std = df["r"].std()
+        d_com_x = np.diff(df["com_x"]) / time_delta
+        d_com_y = np.diff(df["com_y"]) / time_delta
+        dr_std = np.sqrt(d_com_x**2 + d_com_y**2).std()
         k = best_params["k"]
-        print(f"R mean: {r_mean}, std: {r_std}, k: {k}")
+        print(f"R mean: {r_mean}, std: {r_std}, dr_std: {dr_std}, k: {k}")
 
         # 単純な軌跡は次の seed へ
         if r_mean > 0.6 or r_std < 0.1:
