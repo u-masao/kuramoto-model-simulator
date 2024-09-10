@@ -1,5 +1,9 @@
 all: demo
 
+## gen image stock
+gen:
+	poetry run python optimize.py ../data/stock/db.sqlite3 --limit=100
+
 ## optimize
 optimize:
 	mkdir ../data -p
