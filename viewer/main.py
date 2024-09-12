@@ -23,6 +23,7 @@ def load_data():
             select n, seed, optuna_seed, k, image_path
             from ksim
             where skip=false
+            order by n, seed, optuna_seed, k
         """
     )
     stock_df = pd.DataFrame(
@@ -38,40 +39,47 @@ def init():
     print(stock_df)
 
 
-def load_images(image_filename):
+def load_image(image_filename):
     image = Image.open(data_dir / image_dir / image_filename)
     image = image.resize((150, 150))
     return image
 
 
-def load(*args, **kwargs):
+def load(*args, n=10, **kwargs):
     global stock_df
     images = (
-        stock_df.head(10)
+        stock_df.head(n)
         .loc[:, "image_path"]
-        .map(lambda x: load_images(x))
+        .map(lambda x: load_image(x))
         .tolist()
     )
     return images
 
 
+def on_select(evt: gr.SelectData):
+    if isinstance(evt.target, gr.Image):
+        params = {
+            f"{x.split(':')[0]}": float(x.split(":")[1])
+            for x in evt.target.label.split("_")
+        }
+        print(params)
+
+
+init()
 with gr.Blocks() as demo:
     with gr.Row():
         with gr.Column():
             image_comps = []
-            for i in range(image_comp_count):
-                image_comps.append(gr.Image(f"image_{i}"))
-        with gr.Column():
-            load_button = gr.Button(value="load")
+            for index, row in stock_df.head(10).iterrows():
+                label = f"n:{row['n']}_s:{row['seed']}_k:{row['k']}"
+                image = load_image(row["image_path"])
+                image_comps.append(
+                    gr.Image(label=label, value=image, show_label=False)
+                )
+                image_comps[-1].select(on_select)
+        with gr.Row():
+            gr.Button()
 
-    load_button.click(
-        load,
-        inputs=load_button,
-        outputs=image_comps,
-        api_name="translate-to-german",
-    )
-
-init()
 
 if __name__ == "__main__":
     demo.launch(share=False)
