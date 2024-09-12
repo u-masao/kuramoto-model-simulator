@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "kviewer"
+version = "0.1.0"
+description = ""
+authors = ["u-masao <4973920+u-masao@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+gradio = "^4.44.0"
+pandas = "^2.2.2"
+pillow = "^10.4.0"
+
+
+[tool.poetry.group.dev.dependencies]
+isort = "^5.13.2"
+flake8 = "^7.1.1"
+black = "^24.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

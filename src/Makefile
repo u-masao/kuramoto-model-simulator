@@ -1,27 +1,29 @@
 all: demo
 
-## gen image stock
-gen:
-	poetry run python optimize.py ../data/stock/db.sqlite3 --limit=100
+## explore and generate images
+N=100
+explore:
+	mkdir -p ../data/stock/
+	poetry run python explore.py ../data/stock/db.sqlite3 --limit=$(N)
 
-## optimize
-optimize:
-	mkdir ../data -p
-	poetry run python optimize.py ../data/summary.csv --time=180
 
 ## cpu
-demo: ksim ksim.so ksim_c.py ksim_torch.py
+demo: ksim ksim.so ksim_torch.py demo.py
 	./ksim
 	poetry run python demo.py
 
-ksim: ksim_c.c
-	gcc -O3 -Wall -o ksim ksim_c.c -lm
+ksim_c.o: ksim_c.c
+	gcc -O3 -Wall -c -lm ksim_c.c -o ksim_c.o
 
-ksim.so: ksim_c.c
-	gcc -shared -O3 -Wall -o ksim.so ksim_c.c -lm
+ksim.so: ksim_c.o
+	gcc -shared -O3 -Wall ksim_c.o -o ksim.so
+
+ksim: ksim_c
+ksim_c: ksim_c.o main_ksim_c.c
+	gcc -O3 -Wall ksim_c.o main_ksim_c.c -o ksim -lm
 
 
-## duca
+## cuda
 demo_cu: ksim_cu
 	./ksim_cu
 
