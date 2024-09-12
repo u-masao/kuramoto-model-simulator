@@ -1,13 +1,10 @@
 all: demo
 
-## gen image stock
-gen:
-	poetry run python optimize.py ../data/stock/db.sqlite3 --limit=100
-
-## optimize
-optimize:
-	mkdir ../data -p
-	poetry run python optimize.py ../data/summary.csv --time=180
+## explore and generate images
+N=100
+explore:
+	mkdir -p ../data/stock/
+	poetry run python explore.py ../data/stock/db.sqlite3 --limit=$(N)
 
 
 ## cpu
