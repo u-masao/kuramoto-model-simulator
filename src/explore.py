@@ -7,9 +7,41 @@ import numpy as np
 import optuna
 import pandas as pd
 
-from ksim_c import kuramoto_model_simulator
+from ksim_c import (
+    kuramoto_model_simulator,
+    sample_initial_variables_from_normal_dist,
+)
 
 KSIM_LIB = "./ksim.so"
+
+
+def sample_and_simulation(
+    library_path: str,
+    n: int = 10,
+    k: int = 4,
+    time_delta: float = 0.01,
+    loop_count: int = 10,
+    mu: float = 1.0,
+    sigma: float = 1.0,
+    seed: int = 0,
+):
+    omega, theta = sample_initial_variables_from_normal_dist(
+        n=n,
+        mu=mu,
+        sigma=sigma,
+        seed=seed,
+    )
+    simulated = kuramoto_model_simulator(
+        KSIM_LIB,
+        omega,
+        theta,
+        n=n,
+        k=k,
+        time_delta=time_delta,
+        loop_count=loop_count,
+    )
+
+    return simulated
 
 
 def score_function(
@@ -69,7 +101,7 @@ def objective_wrapper(
         k = trial.suggest_float("k", k_min, k_max)
 
         # シミュレーション
-        simulated = kuramoto_model_simulator(
+        simulated = sample_and_simulation(
             KSIM_LIB,
             n=n,
             k=k,
@@ -78,7 +110,6 @@ def objective_wrapper(
             mu=mu,
             sigma=sigma,
             seed=seed,
-            verbose=verbose,
         )
 
         # スコア計算
@@ -171,7 +202,7 @@ class MatrixPlot:
         plt.close()
 
 
-def search(optuna_seed, seed, n, loop_sec, time_delta=0.01):
+def search(optuna_seed, seed, n, loop_sec, time_delta=0.01, mu=1.0, sigma=1.0):
     """
     探索方法の実行
     """
@@ -203,16 +234,15 @@ def search(optuna_seed, seed, n, loop_sec, time_delta=0.01):
     k = best_params["k"]
 
     # データ取得のための再シミュレーション
-    simulated = kuramoto_model_simulator(
+    simulated = sample_and_simulation(
         KSIM_LIB,
         n=n,
         k=k,
         time_delta=time_delta,
         loop_count=loop_count,
-        mu=1.0,
-        sigma=1.0,
+        mu=mu,
+        sigma=sigma,
         seed=seed,
-        verbose=0,
     )
 
     com_x = np.array(simulated["com_x"])
