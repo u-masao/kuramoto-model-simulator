@@ -4,7 +4,7 @@ import click
 
 from ksim_c import (
     kuramoto_model_simulator,
-    sample_initial_values_from_normal_dist,
+    sample_initial_variables_from_normal_dist,
 )
 from ksim_torch import kuramoto_model_simulator_pt
 
@@ -18,7 +18,7 @@ def main(**kwargs):
     n = 3000
     loop_count = 1000
 
-    omega, theta = sample_initial_values_from_normal_dist(n=n)
+    omega, theta = sample_initial_variables_from_normal_dist(n=n)
 
     result = kuramoto_model_simulator(
         kwargs["ksim_library_path"],
