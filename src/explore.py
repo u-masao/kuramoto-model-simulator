@@ -202,7 +202,7 @@ class MatrixPlot:
         plt.close()
 
 
-def search(optuna_seed, seed, n, loop_sec, time_delta=0.01, mu=1.0, sigma=1.0):
+def search(optuna_seed, seed, n, loop_sec, time_delta=0.01, mu=1.0, sigma=1.0, n_trials = 100):
     """
     探索方法の実行
     """
@@ -225,11 +225,12 @@ def search(optuna_seed, seed, n, loop_sec, time_delta=0.01, mu=1.0, sigma=1.0):
             n=n,
             time_delta=time_delta,
         ),
-        n_trials=100,
+        n_trials=n_trials,
     )
     best_params = study.best_params
     print(f"best params: {best_params}")
     print(f"best score: {study.best_value}")
+    print(f"best traial: {study.best_trial.number}/{n_trials}")
 
     k = best_params["k"]
 
@@ -269,7 +270,8 @@ def search(optuna_seed, seed, n, loop_sec, time_delta=0.01, mu=1.0, sigma=1.0):
 @click.option("--time", type=int, default=120)
 @click.option("--optuna_seed", type=int, default=0)
 @click.option("--seed", type=int, default=0)
-@click.option("--n", type=int, default=10)
+@click.option("--n_end", type=int, default=20)
+@click.option("--n_start", type=int, default=3)
 @click.option("--limit", type=int, default=2)
 @click.option("--image_dir", type=str, default="images")
 def main(**kwargs):
@@ -290,14 +292,24 @@ def main(**kwargs):
         "ksim(seed, optuna_seed, k, n, skip, image_path)"
     )
 
-    # 初期パラメーター設定
-    n = kwargs["n"]
-    seed = 0
+    # 定数
     optuna_seed = 0
+    time_delta = 0.01
+
+    # 初期パラメーター設定
+    n = kwargs["n_start"]
+    seed = 0
     counter = 0
 
     # 探索ループ
-    while counter < kwargs["limit"]:
+    while True:
+        if n > kwargs['n_end']:
+            break
+        if counter >= kwargs['limit']:
+            counter = 0
+            seed = 0
+            n += 1
+
 
         # 条件表示
         print(
@@ -317,7 +329,6 @@ def main(**kwargs):
             continue
 
         # 探索
-        time_delta = 0.01
         df, best_params = search(
             optuna_seed, seed, n, kwargs["time"], time_delta=time_delta
         )
