@@ -5,27 +5,22 @@ from typing import List
 import click
 import numpy as np
 
-"""
-double frand() { return (double)rand() / ((double)RAND_MAX + 1); }
 
-double rnorm(double mu, double sigma) {
-  return mu + sigma * sqrt(-2.0 * log(frand())) * cos(2.0 * M_PI * frand());
-}
-"""
-
-
-def sample_initial_values_from_normal_dist(
+def sample_initial_variables_from_normal_dist(
     n: int = 10,
     mu: float = 1.0,
     sigma: float = 1.0,
     seed: int = 0,
 ):
+    """
+    sample initial variables
+    """
     # set random state
-    np.random.RandomState(seed=seed)
+    generator = np.random.RandomState(seed)
 
-    # generate initial values
-    omega = np.random.normal(loc=mu, scale=sigma, size=n).tolist()
-    theta = (np.random.rand(n) * 2 * np.pi).tolist()
+    # generate initial variables
+    omega = generator.normal(loc=mu, scale=sigma, size=n).tolist()
+    theta = (generator.rand(n) * 2 * np.pi).tolist()
 
     return omega, theta
 
@@ -125,11 +120,12 @@ def kuramoto_model_simulator(
     "--ksim_library_path", type=click.Path(exists=True), default="./ksim.so"
 )
 def main(**kwargs):
-    omega, theta = sample_initial_values_from_normal_dist()
+    omega, theta = sample_initial_variables_from_normal_dist()
     result = kuramoto_model_simulator(
         kwargs["ksim_library_path"], omega, theta
     )
     print(json.dumps(result))
+    print(omega)
 
 
 if __name__ == "__main__":
